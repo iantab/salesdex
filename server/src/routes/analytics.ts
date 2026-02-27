@@ -1,35 +1,14 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { CloudflareBindings } from "../types/bindings";
 import { kvCache } from "../middleware/cache";
 import { getMomentumScores } from "../services/analytics/momentum";
-import { getPublisherShare } from "../services/analytics/publisher";
 import { createDb } from "../db/client";
 import { circana_entries, circana_reports, games } from "../db/schema";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 const TTL_24H = 60 * 60 * 24;
-
-const publisherShareSchema = z.object({
-  year: z.coerce.number().int().min(2000).max(2035),
-  chart_type: z
-    .enum(["overall", "nintendo", "playstation", "xbox"])
-    .default("overall"),
-});
-
-app.get(
-  "/publisher-share",
-  kvCache(TTL_24H),
-  zValidator("query", publisherShareSchema),
-  async (c) => {
-    const { year, chart_type } = c.req.valid("query");
-    const data = await getPublisherShare(c.env.DB, year, chart_type);
-    return c.json({ data });
-  },
-);
 
 app.get("/momentum", kvCache(TTL_24H), async (c) => {
   const data = await getMomentumScores(c.env.DB);

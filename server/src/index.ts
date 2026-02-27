@@ -8,7 +8,6 @@ import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { enrichGames } from "./routes/admin/ingest-circana";
 import gamesRoutes from "./routes/games";
 import circanaRoutes from "./routes/circana";
-import publishersRoutes from "./routes/publishers";
 import analyticsRoutes from "./routes/analytics";
 import adminRoutes from "./routes/admin/ingest-circana";
 
@@ -31,13 +30,11 @@ app.use(
 app.use("/games/*", rateLimitMiddleware);
 app.use("/circana/*", rateLimitMiddleware);
 app.use("/analytics/*", rateLimitMiddleware);
-app.use("/publishers/*", rateLimitMiddleware);
 
 app.get("/", (c) => c.json({ status: "ok" }));
 
 app.route("/games", gamesRoutes);
 app.route("/circana", circanaRoutes);
-app.route("/publishers", publishersRoutes);
 app.route("/analytics", analyticsRoutes);
 
 // Admin routes — protected by rate limiting and auth middleware

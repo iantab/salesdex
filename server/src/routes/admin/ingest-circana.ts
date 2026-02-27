@@ -210,7 +210,6 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 
   // 5. Invalidate KV cache — uses prefix scan so parameterized variants are caught
   await Promise.allSettled([
-    invalidateCachePrefix(c.env.KV, "cache:/analytics/publisher-share:"),
     invalidateCachePrefix(c.env.KV, "cache:/analytics/momentum:"),
     invalidateCachePrefix(c.env.KV, "cache:/analytics/streaks:"),
     invalidateCachePrefix(c.env.KV, "cache:/circana/charts:"),
