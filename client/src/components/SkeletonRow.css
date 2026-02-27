@@ -1,0 +1,56 @@
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    var(--color-border) 50%,
+    var(--color-surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 4px;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.skeleton-row:last-child {
+  border-bottom: none;
+}
+
+.skeleton-row__rank {
+  width: 2rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.skeleton-row__cover {
+  width: 48px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.skeleton-row__title {
+  flex: 1;
+  height: 1rem;
+  max-width: 55%;
+}
+
+.skeleton-row__badge {
+  width: 2.5rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}

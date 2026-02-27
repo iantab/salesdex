@@ -80,6 +80,7 @@ export function ReportSelector({
             role="tab"
             aria-selected={chartType === ct.value}
             className={`chart-tab${chartType === ct.value ? " chart-tab--active" : ""}`}
+            data-platform={ct.value}
             onClick={() => onChartTypeChange(ct.value)}
           >
             {ct.label}

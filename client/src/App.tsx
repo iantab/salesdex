@@ -60,6 +60,9 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>Salesdex</h1>
+        <p className="app-header__tagline">
+          US video game sales rankings — powered by Circana data
+        </p>
       </header>
       <main className="app-main">
         {reportsQuery.isPending && <Spinner />}

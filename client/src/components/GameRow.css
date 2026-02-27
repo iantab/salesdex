@@ -1,3 +1,14 @@
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .game-row {
   display: flex;
   align-items: center;
@@ -7,6 +18,38 @@
   transition: background-color 0.15s;
   cursor: pointer;
   user-select: none;
+  animation: fadeSlideIn 0.2s ease both;
+}
+
+.game-row:nth-child(1) {
+  animation-delay: 0ms;
+}
+.game-row:nth-child(2) {
+  animation-delay: 25ms;
+}
+.game-row:nth-child(3) {
+  animation-delay: 50ms;
+}
+.game-row:nth-child(4) {
+  animation-delay: 75ms;
+}
+.game-row:nth-child(5) {
+  animation-delay: 100ms;
+}
+.game-row:nth-child(6) {
+  animation-delay: 125ms;
+}
+.game-row:nth-child(7) {
+  animation-delay: 150ms;
+}
+.game-row:nth-child(8) {
+  animation-delay: 175ms;
+}
+.game-row:nth-child(9) {
+  animation-delay: 200ms;
+}
+.game-row:nth-child(10) {
+  animation-delay: 225ms;
 }
 
 .game-row:last-child {
@@ -26,6 +69,19 @@
   text-align: right;
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+.game-row__rank--gold {
+  color: #f59e0b;
+  font-size: 1.25rem;
+}
+
+.game-row__rank--silver {
+  color: #94a3b8;
+}
+
+.game-row__rank--bronze {
+  color: #cd7c3a;
 }
 
 .game-row__cover {
@@ -71,6 +127,9 @@
   border-radius: 4px;
   font-variant-numeric: tabular-nums;
   font-family: monospace;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .rank-badge--new {

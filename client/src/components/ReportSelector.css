@@ -76,3 +76,30 @@
   background-color: var(--color-accent);
   border-radius: 2px 2px 0 0;
 }
+
+.chart-tab--active[data-platform="nintendo"] {
+  color: #e60012;
+  background-color: rgba(230, 0, 18, 0.1);
+}
+
+.chart-tab--active[data-platform="nintendo"]::after {
+  background-color: #e60012;
+}
+
+.chart-tab--active[data-platform="playstation"] {
+  color: #6fa3d4;
+  background-color: rgba(0, 48, 135, 0.15);
+}
+
+.chart-tab--active[data-platform="playstation"]::after {
+  background-color: #6fa3d4;
+}
+
+.chart-tab--active[data-platform="xbox"] {
+  color: #52b043;
+  background-color: rgba(16, 124, 16, 0.1);
+}
+
+.chart-tab--active[data-platform="xbox"]::after {
+  background-color: #52b043;
+}
