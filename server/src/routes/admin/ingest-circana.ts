@@ -5,7 +5,6 @@ import { eq, and, isNull, or } from "drizzle-orm";
 import type { CloudflareBindings } from "../../types/bindings";
 import { createDb } from "../../db/client";
 import {
-  publishers,
   games,
   circana_reports,
   circana_market_totals,
@@ -30,7 +29,6 @@ const EntrySchema = z.object({
     .optional(),
   game: z.object({
     title_en: z.string(),
-    publisher_name: z.string(),
   }),
 });
 
@@ -138,30 +136,6 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   const newGameIds: number[] = [];
 
   for (const entry of payload.entries) {
-    // Resolve or create publisher
-    let publisherId: number;
-    const existingPub = await db
-      .select()
-      .from(publishers)
-      .where(eq(publishers.name, entry.game.publisher_name))
-      .limit(1);
-
-    if (existingPub.length > 0) {
-      publisherId = existingPub[0].id;
-    } else {
-      warnings.push(
-        `Unknown publisher: "${entry.game.publisher_name}" — created as placeholder`,
-      );
-      const newPub = await db
-        .insert(publishers)
-        .values({
-          name: entry.game.publisher_name,
-          display_name: entry.game.publisher_name,
-        })
-        .returning({ id: publishers.id });
-      publisherId = newPub[0].id;
-    }
-
     // Resolve or create game
     let gameId: number;
     const existingGame = await db
@@ -177,7 +151,6 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
         .insert(games)
         .values({
           title_en: entry.game.title_en,
-          publisher_id: publisherId,
         })
         .returning({ id: games.id });
       gameId = newGame[0].id;
@@ -245,13 +218,12 @@ app.post("/games/:id", async (c) => {
   const body = await c.req.json<Partial<typeof games.$inferInsert>>();
 
   // Only allow safe metadata fields
-  const { title_en, igdb_id, release_date_us, cover_url, publisher_id } = body;
+  const { title_en, igdb_id, release_date_us, cover_url } = body;
   const update: Partial<typeof games.$inferInsert> = {};
   if (title_en !== undefined) update.title_en = title_en;
   if (igdb_id !== undefined) update.igdb_id = igdb_id;
   if (release_date_us !== undefined) update.release_date_us = release_date_us;
   if (cover_url !== undefined) update.cover_url = cover_url;
-  if (publisher_id !== undefined) update.publisher_id = publisher_id;
 
   if (Object.keys(update).length === 0) {
     return c.json({ error: "No valid fields to update" }, 400);
@@ -264,55 +236,6 @@ app.post("/games/:id", async (c) => {
     .returning();
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ data: rows[0] });
-});
-
-const PublisherSchema = z.object({
-  name: z.string(),
-  display_name: z.string(),
-  parent_company: z.string().optional(),
-  country: z.string().optional(),
-});
-
-app.post("/publishers", zValidator("json", PublisherSchema), async (c) => {
-  const body = c.req.valid("json");
-  const db = createDb(c.env.DB);
-
-  const existing = await db
-    .select()
-    .from(publishers)
-    .where(eq(publishers.name, body.name))
-    .limit(1);
-
-  if (existing.length > 0) {
-    const updated = await db
-      .update(publishers)
-      .set(body)
-      .where(eq(publishers.name, body.name))
-      .returning();
-    return c.json({ data: updated[0] });
-  }
-
-  const inserted = await db.insert(publishers).values(body).returning();
-  return c.json({ data: inserted[0] }, 201);
-});
-
-app.get("/queue", async (c) => {
-  const db = createDb(c.env.DB);
-
-  // Reports that have entries where the publisher was auto-created (display_name === name, no country, no parent)
-  const rows = await db
-    .select({
-      publisher_id: publishers.id,
-      name: publishers.name,
-      display_name: publishers.display_name,
-    })
-    .from(publishers)
-    .where(eq(publishers.display_name, publishers.name));
-
-  return c.json({
-    data: rows,
-    note: "Publishers with no enrichment (possible unresolved placeholders)",
-  });
 });
 
 export default app;

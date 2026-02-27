@@ -69,7 +69,6 @@ app.get("/charts", zValidator("query", chartsQuerySchema), async (c) => {
       flags: circana_entries.flags,
       game_id: games.id,
       title_en: games.title_en,
-      title_jp: games.title_jp,
       cover_url: games.cover_url,
     })
     .from(circana_entries)
