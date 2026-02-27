@@ -1,7 +1,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { createDb } from "../../db/client";
 import { circana_entries, circana_reports, games } from "../../db/schema";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, inArray } from "drizzle-orm";
 
 interface MomentumEntry {
   game_id: number;
@@ -57,17 +57,19 @@ export async function getMomentumScores(
     })
     .from(circana_entries)
     .innerJoin(games, eq(circana_entries.game_id, games.id))
-    .where(eq(circana_entries.chart_type, "overall"));
-
-  // Filter to only entries in recent reports
-  const filtered = entries.filter((e) => reportIds.includes(e.report_id));
+    .where(
+      and(
+        eq(circana_entries.chart_type, "overall"),
+        inArray(circana_entries.report_id, reportIds),
+      ),
+    );
 
   // Group by game_id
   const byGame = new Map<
     number,
     { title_en: string; ranksByReport: Map<number, number> }
   >();
-  for (const entry of filtered) {
+  for (const entry of entries) {
     if (!byGame.has(entry.game_id)) {
       byGame.set(entry.game_id, {
         title_en: entry.title_en,

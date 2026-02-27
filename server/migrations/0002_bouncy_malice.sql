@@ -1,4 +1,4 @@
-DROP TABLE `publishers`;--> statement-breakpoint
+DROP TABLE IF EXISTS `publishers`;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_games` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,

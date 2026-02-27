@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, isNull, or } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import type { CloudflareBindings } from "../../types/bindings";
 import { createDb } from "../../db/client";
 import {
@@ -135,41 +135,47 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   let inserted_count = 0;
   const newGameIds: number[] = [];
 
-  for (const entry of payload.entries) {
-    // Resolve or create game
-    let gameId: number;
-    const existingGame = await db
-      .select()
-      .from(games)
-      .where(eq(games.title_en, entry.game.title_en))
-      .limit(1);
+  // Phase 1: collect unique titles
+  const uniqueTitles = [
+    ...new Set(payload.entries.map((e) => e.game.title_en)),
+  ];
 
-    if (existingGame.length > 0) {
-      gameId = existingGame[0].id;
-    } else {
-      const newGame = await db
-        .insert(games)
-        .values({
-          title_en: entry.game.title_en,
-        })
-        .returning({ id: games.id });
-      gameId = newGame[0].id;
-      newGameIds.push(gameId);
+  // Phase 2: batch-fetch all existing games (1 query instead of N)
+  const existingGames = await db
+    .select({ id: games.id, title_en: games.title_en })
+    .from(games)
+    .where(inArray(games.title_en, uniqueTitles));
+
+  const titleToGameId = new Map<string, number>(
+    existingGames.map((g) => [g.title_en, g.id]),
+  );
+
+  // Phase 3: batch-insert missing games (1 query instead of N)
+  const missingTitles = uniqueTitles.filter((t) => !titleToGameId.has(t));
+  if (missingTitles.length > 0) {
+    const inserted = await db
+      .insert(games)
+      .values(missingTitles.map((title_en) => ({ title_en })))
+      .returning({ id: games.id, title_en: games.title_en });
+    for (const g of inserted) {
+      titleToGameId.set(g.title_en, g.id);
+      newGameIds.push(g.id);
     }
-
-    // Insert circana entry
-    await db.insert(circana_entries).values({
-      report_id: reportId,
-      game_id: gameId,
-      chart_type: entry.chart_type,
-      rank: entry.rank,
-      last_month_rank: entry.last_month_rank ?? null,
-      is_new_entry: entry.is_new_entry ?? false,
-      flags: entry.flags ? JSON.stringify(entry.flags) : null,
-    });
-
-    inserted_count++;
   }
+
+  // Phase 4: batch-insert all circana_entries (1 query instead of N)
+  const entryValues = payload.entries.map((entry) => ({
+    report_id: reportId,
+    game_id: titleToGameId.get(entry.game.title_en)!,
+    chart_type: entry.chart_type,
+    rank: entry.rank,
+    last_month_rank: entry.last_month_rank ?? null,
+    is_new_entry: entry.is_new_entry ?? false,
+    flags: entry.flags ? JSON.stringify(entry.flags) : null,
+  }));
+
+  await db.insert(circana_entries).values(entryValues);
+  inserted_count = entryValues.length;
 
   // 4. Invalidate KV cache keys for analytics routes
   await Promise.allSettled([

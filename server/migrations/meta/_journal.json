@@ -22,6 +22,13 @@
       "when": 1772162077419,
       "tag": "0002_bouncy_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772165662346,
+      "tag": "0003_familiar_caretaker",
+      "breakpoints": true
     }
   ]
 }

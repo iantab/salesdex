@@ -34,7 +34,7 @@ app.get("/momentum", kvCache(TTL_24H), async (c) => {
   return c.json({ data });
 });
 
-app.get("/streaks", async (c) => {
+app.get("/streaks", kvCache(TTL_24H), async (c) => {
   const db = createDb(c.env.DB);
 
   // Get all overall entries ordered by game + period
