@@ -21,13 +21,9 @@ export const publishers = sqliteTable("publishers", {
 export const games = sqliteTable("games", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title_en: text("title_en").notNull(),
-  title_jp: text("title_jp"),
   publisher_id: integer("publisher_id").references(() => publishers.id),
-  developer: text("developer"),
-  franchise: text("franchise"),
   igdb_id: integer("igdb_id"),
   release_date_us: text("release_date_us"),
-  release_date_jp: text("release_date_jp"),
   cover_url: text("cover_url"),
   created_at: text("created_at")
     .notNull()
@@ -77,7 +73,7 @@ export const circana_entries = sqliteTable("circana_entries", {
   game_id: integer("game_id")
     .notNull()
     .references(() => games.id),
-  chart_type: text("chart_type").notNull(), // 'overall' | 'console' | 'pc' | 'portable'
+  chart_type: text("chart_type").notNull(), // 'overall' | 'nintendo' | 'playstation' | 'xbox'
   rank: integer("rank").notNull(),
   last_month_rank: integer("last_month_rank"),
   is_new_entry: integer("is_new_entry", { mode: "boolean" })

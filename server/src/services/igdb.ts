@@ -2,11 +2,6 @@ import type { CloudflareBindings } from "../types/bindings";
 
 const TOKEN_KEY = "igdb:access_token";
 
-const TITLE_OVERRIDES: Record<string, string> = {
-  "My Sims: Cozy Bundle": "MySims: Cozy Bundle",
-  "Flight Simulator 2024": "Microsoft Flight Simulator 2024",
-};
-
 async function getAccessToken(env: CloudflareBindings): Promise<string> {
   const cached = await env.KV.get(TOKEN_KEY);
   if (cached) return cached;
@@ -135,9 +130,27 @@ export async function searchGame(
   const token = await getAccessToken(env);
 
   const cleanTitle = title.replace(/[®™©]/g, "").trim();
-  const searchTitleOverrides = TITLE_OVERRIDES[cleanTitle] || cleanTitle;
 
-  const doSearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
+  const doExactSearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
+    const sanitized = searchTitle.replace(/"/g, '\\"');
+    const body = `fields ${IGDB_FIELDS};\nwhere name ~ "${sanitized}";\nlimit 1;`;
+
+    const res = await fetch("https://api.igdb.com/v4/games", {
+      method: "POST",
+      headers: {
+        "Client-ID": env.TWITCH_CLIENT_ID,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "text/plain",
+      },
+      body,
+    });
+
+    if (!res.ok)
+      throw new Error(`IGDB exact search request failed: ${res.status}`);
+    return res.json<IGDBRawGame[]>();
+  };
+
+  const doFuzzySearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, "");
     const body = `fields ${IGDB_FIELDS};\nsearch "${sanitized}";\nlimit 1;`;
 
@@ -151,19 +164,30 @@ export async function searchGame(
       body,
     });
 
-    if (!res.ok) throw new Error(`IGDB request failed: ${res.status}`);
+    if (!res.ok)
+      throw new Error(`IGDB fuzzy search request failed: ${res.status}`);
     return res.json<IGDBRawGame[]>();
   };
 
-  let results = await doSearch(searchTitleOverrides);
+  // 1. Try an exact match first
+  let results = await doExactSearch(cleanTitle);
 
+  // 2. If no exact match, try a fuzzy text search
+  if (results.length === 0) {
+    results = await doFuzzySearch(cleanTitle);
+  }
+
+  // 3. Fallback: if there's a subtitle, search just the main title part
   if (
     results.length === 0 &&
-    (searchTitleOverrides.includes(" - ") ||
-      searchTitleOverrides.includes(": "))
+    (cleanTitle.includes(" - ") || cleanTitle.includes(": "))
   ) {
-    const shortTitle = searchTitleOverrides.split(/ - |: /)[0].trim();
-    results = await doSearch(shortTitle);
+    const shortTitle = cleanTitle.split(/ - |: /)[0].trim();
+    results = await doExactSearch(shortTitle);
+
+    if (results.length === 0) {
+      results = await doFuzzySearch(shortTitle);
+    }
   }
 
   if (results.length === 0) return null;

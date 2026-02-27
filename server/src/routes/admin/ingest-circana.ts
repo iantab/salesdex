@@ -16,17 +16,21 @@ import { searchGame, getGameById } from "../../services/igdb";
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 const EntrySchema = z.object({
-  chart_type: z.string(),
+  chart_type: z.enum(["overall", "nintendo", "playstation", "xbox"]),
   rank: z.number().int(),
   last_month_rank: z.number().int().nullable().optional(),
   is_new_entry: z.boolean().optional(),
-  flags: z.record(z.string(), z.unknown()).optional(),
+  flags: z
+    .object({
+      no_nintendo_digital: z.boolean().optional(),
+      no_digital: z.boolean().optional(),
+      no_nintendo_xbox_digital: z.boolean().optional(),
+    })
+    .strict()
+    .optional(),
   game: z.object({
     title_en: z.string(),
-    title_jp: z.string().optional(),
     publisher_name: z.string(),
-    developer: z.string().optional(),
-    franchise: z.string().optional(),
   }),
 });
 
@@ -74,11 +78,7 @@ async function enrichGames(
         igdb_id: result.igdb_id,
         cover_url: result.cover_url,
         release_date_us: result.release_date_us,
-        release_date_jp: result.release_date_jp,
       };
-      if (result.developer !== null) updateSet.developer = result.developer;
-      if (result.franchise !== null) updateSet.franchise = result.franchise;
-      if (result.title_jp !== null) updateSet.title_jp = result.title_jp;
 
       await db.update(games).set(updateSet).where(eq(games.id, gameId));
     } catch {
@@ -177,10 +177,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
         .insert(games)
         .values({
           title_en: entry.game.title_en,
-          title_jp: entry.game.title_jp ?? null,
           publisher_id: publisherId,
-          developer: entry.game.developer ?? null,
-          franchise: entry.game.franchise ?? null,
         })
         .returning({ id: games.id });
       gameId = newGame[0].id;
@@ -228,7 +225,7 @@ app.get("/games/enrich", async (c) => {
   const rows = await db
     .select({ id: games.id })
     .from(games)
-    .where(or(isNull(games.igdb_id), isNull(games.developer)));
+    .where(isNull(games.igdb_id));
 
   if (rows.length === 0) {
     return c.json({
@@ -248,25 +245,11 @@ app.post("/games/:id", async (c) => {
   const body = await c.req.json<Partial<typeof games.$inferInsert>>();
 
   // Only allow safe metadata fields
-  const {
-    title_en,
-    title_jp,
-    developer,
-    franchise,
-    igdb_id,
-    release_date_us,
-    release_date_jp,
-    cover_url,
-    publisher_id,
-  } = body;
+  const { title_en, igdb_id, release_date_us, cover_url, publisher_id } = body;
   const update: Partial<typeof games.$inferInsert> = {};
   if (title_en !== undefined) update.title_en = title_en;
-  if (title_jp !== undefined) update.title_jp = title_jp;
-  if (developer !== undefined) update.developer = developer;
-  if (franchise !== undefined) update.franchise = franchise;
   if (igdb_id !== undefined) update.igdb_id = igdb_id;
   if (release_date_us !== undefined) update.release_date_us = release_date_us;
-  if (release_date_jp !== undefined) update.release_date_jp = release_date_jp;
   if (cover_url !== undefined) update.cover_url = cover_url;
   if (publisher_id !== undefined) update.publisher_id = publisher_id;
 
