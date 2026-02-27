@@ -7,6 +7,7 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? "/",
   server: {
     proxy: {
+      "/games": "http://localhost:8787",
       "/circana": "http://localhost:8787",
       "/admin": "http://localhost:8787",
     },

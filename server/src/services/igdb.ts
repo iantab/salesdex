@@ -30,6 +30,7 @@ async function getAccessToken(env: CloudflareBindings): Promise<string> {
 
 export interface IGDBResult {
   igdb_id: number;
+  slug: string | null;
   cover_url: string | null;
   release_date_us: string | null;
   release_date_jp: string | null;
@@ -40,6 +41,7 @@ export interface IGDBResult {
 
 interface IGDBRawGame {
   id: number;
+  slug?: string;
   cover?: { url: string };
   first_release_date?: number;
   involved_companies?: Array<{
@@ -58,7 +60,7 @@ interface IGDBRawGame {
 }
 
 const IGDB_FIELDS =
-  "id,name,cover.url,first_release_date," +
+  "id,name,slug,cover.url,first_release_date," +
   "involved_companies.company.name,involved_companies.developer," +
   "franchises.name," +
   "alternative_names.name,alternative_names.comment," +
@@ -115,6 +117,7 @@ function parseIGDBGame(game: IGDBRawGame): IGDBResult {
 
   return {
     igdb_id: game.id,
+    slug: game.slug ?? null,
     cover_url,
     release_date_us,
     release_date_jp,

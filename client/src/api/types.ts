@@ -34,3 +34,23 @@ export interface ChartEntry {
   title_en: string;
   cover_url: string | null;
 }
+
+export interface GameDetail {
+  id: number;
+  title_en: string;
+  igdb_id: number | null;
+  release_date_us: string | null;
+  cover_url: string | null;
+  created_at: string;
+}
+
+export interface IgdbDetail {
+  igdb_id: number;
+  slug: string | null;
+  developer: string | null;
+  franchise: string | null;
+  title_jp: string | null;
+  release_date_us: string | null;
+  release_date_jp: string | null;
+  cover_url: string | null;
+}

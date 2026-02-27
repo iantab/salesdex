@@ -3,6 +3,7 @@ import "./GameRow.css";
 
 interface Props {
   entry: ChartEntry;
+  onClick: () => void;
 }
 
 function RankBadge({ entry }: { entry: ChartEntry }) {
@@ -24,9 +25,17 @@ function RankBadge({ entry }: { entry: ChartEntry }) {
   return <span className="rank-badge rank-badge--neutral">—</span>;
 }
 
-export function GameRow({ entry }: Props) {
+export function GameRow({ entry, onClick }: Props) {
   return (
-    <div className="game-row">
+    <div
+      className="game-row"
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick();
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <span className="game-row__rank">{entry.rank}</span>
       <div className="game-row__cover">
         {entry.cover_url ? (

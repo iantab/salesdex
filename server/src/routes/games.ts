@@ -5,6 +5,7 @@ import { eq, like, sql } from "drizzle-orm";
 import type { CloudflareBindings } from "../types/bindings";
 import { createDb } from "../db/client";
 import { games, circana_entries, circana_reports } from "../db/schema";
+import { getGameById } from "../services/igdb";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -66,6 +67,26 @@ app.get("/:id", async (c) => {
 
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ data: rows[0] });
+});
+
+app.get("/:id/igdb", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id < 1)
+    return c.json({ error: "Not found" }, 404);
+  const db = createDb(c.env.DB);
+
+  const rows = await db
+    .select({ igdb_id: games.igdb_id })
+    .from(games)
+    .where(eq(games.id, id));
+
+  if (rows.length === 0 || rows[0].igdb_id == null)
+    return c.json({ error: "No IGDB ID" }, 404);
+
+  const igdbResult = await getGameById(c.env, rows[0].igdb_id);
+  if (!igdbResult) return c.json({ error: "Not found on IGDB" }, 404);
+
+  return c.json({ data: igdbResult });
 });
 
 app.get("/:id/circana", async (c) => {
