@@ -35,6 +35,8 @@ app.get("/reports", zValidator("query", reportsQuerySchema), async (c) => {
 
 app.get("/reports/:id", async (c) => {
   const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id < 1)
+    return c.json({ error: "Not found" }, 404);
   const db = createDb(c.env.DB);
 
   const [report, totals] = await Promise.all([

@@ -40,8 +40,9 @@ app.route("/circana", circanaRoutes);
 app.route("/publishers", publishersRoutes);
 app.route("/analytics", analyticsRoutes);
 
-// Admin routes — protected by auth middleware
+// Admin routes — protected by rate limiting and auth middleware
 // POST /admin/ingest/circana, POST /admin/games/:id, POST /admin/games/enrich, GET /admin/queue
+app.use("/admin/*", rateLimitMiddleware);
 app.use("/admin/*", authMiddleware);
 app.route("/admin", adminRoutes);
 

@@ -36,6 +36,13 @@
       "when": 1772200000000,
       "tag": "0004_add_unique_circana_entry",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1772300000000,
+      "tag": "0005_add_period_end_index",
+      "breakpoints": true
     }
   ]
 }

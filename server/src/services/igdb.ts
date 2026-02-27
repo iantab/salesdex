@@ -14,6 +14,7 @@ async function getAccessToken(env: CloudflareBindings): Promise<string> {
       client_secret: env.TWITCH_CLIENT_SECRET,
       grant_type: "client_credentials",
     }),
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!res.ok) {
@@ -143,6 +144,7 @@ export async function searchGame(
         "Content-Type": "text/plain",
       },
       body,
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok)
@@ -162,6 +164,7 @@ export async function searchGame(
         "Content-Type": "text/plain",
       },
       body,
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok)
@@ -210,6 +213,7 @@ export async function getGameById(
       "Content-Type": "text/plain",
     },
     body,
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!res.ok) throw new Error(`IGDB request failed: ${res.status}`);

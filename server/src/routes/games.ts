@@ -48,6 +48,8 @@ app.get("/", zValidator("query", listSchema), async (c) => {
 
 app.get("/:id", async (c) => {
   const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id < 1)
+    return c.json({ error: "Not found" }, 404);
   const db = createDb(c.env.DB);
 
   const rows = await db
@@ -68,6 +70,8 @@ app.get("/:id", async (c) => {
 
 app.get("/:id/circana", async (c) => {
   const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id < 1)
+    return c.json({ error: "Not found" }, 404);
   const db = createDb(c.env.DB);
 
   const entries = await db

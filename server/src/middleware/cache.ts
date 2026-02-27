@@ -14,7 +14,11 @@ export const kvCache = (
 
     const cached = await c.env.KV.get(cacheKey);
     if (cached !== null) {
-      return c.json(JSON.parse(cached));
+      try {
+        return c.json(JSON.parse(cached));
+      } catch {
+        // Corrupted cache value — treat as miss and fall through
+      }
     }
 
     await next();
