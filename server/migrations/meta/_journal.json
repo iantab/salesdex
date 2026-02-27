@@ -43,6 +43,13 @@
       "when": 1772300000000,
       "tag": "0005_add_period_end_index",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772169525111,
+      "tag": "0006_wooden_havok",
+      "breakpoints": true
     }
   ]
 }

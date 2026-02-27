@@ -104,10 +104,9 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   let inserted_count = 0;
   let reportId: number;
   const newGameIds: number[] = [];
-
-  await db.transaction(async (tx) => {
+  try {
     // 1. Upsert report
-    const existingReport = await tx
+    const existingReport = await db
       .select({ id: circana_reports.id })
       .from(circana_reports)
       .where(
@@ -123,7 +122,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
     if (existingReport.length > 0) {
       reportId = existingReport[0].id;
     } else {
-      const inserted = await tx
+      const inserted = await db
         .insert(circana_reports)
         .values({
           year: payload.year,
@@ -139,7 +138,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 
     // 2. Upsert market totals
     if (payload.market_totals) {
-      await tx.insert(circana_market_totals).values({
+      await db.insert(circana_market_totals).values({
         report_id: reportId,
         ...payload.market_totals,
       });
@@ -150,7 +149,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
       ...new Set(payload.entries.map((e) => e.game.title_en)),
     ];
 
-    const existingGames = await tx
+    const existingGames = await db
       .select({ id: games.id, title_en: games.title_en })
       .from(games)
       .where(inArray(games.title_en, uniqueTitles));
@@ -161,7 +160,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 
     const missingTitles = uniqueTitles.filter((t) => !titleToGameId.has(t));
     if (missingTitles.length > 0) {
-      const inserted = await tx
+      const inserted = await db
         .insert(games)
         .values(missingTitles.map((title_en) => ({ title_en })))
         .returning({ id: games.id, title_en: games.title_en });
@@ -182,25 +181,32 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
       flags: entry.flags ? JSON.stringify(entry.flags) : null,
     }));
 
-    await tx
-      .insert(circana_entries)
-      .values(entryValues)
-      .onConflictDoUpdate({
-        target: [
-          circana_entries.report_id,
-          circana_entries.game_id,
-          circana_entries.chart_type,
-        ],
-        set: {
-          rank: sql`excluded.rank`,
-          last_month_rank: sql`excluded.last_month_rank`,
-          is_new_entry: sql`excluded.is_new_entry`,
-          flags: sql`excluded.flags`,
-        },
-      });
+    // Chunk entryValues into sizes of 10 to avoid D1 SQLite parameter limits (8 cols * 10 = 80 params)
+    const chunkSize = 10;
+    for (let i = 0; i < entryValues.length; i += chunkSize) {
+      const chunk = entryValues.slice(i, i + chunkSize);
+      await db
+        .insert(circana_entries)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: [
+            circana_entries.report_id,
+            circana_entries.game_id,
+            circana_entries.chart_type,
+          ],
+          set: {
+            rank: sql`excluded.rank`,
+            last_month_rank: sql`excluded.last_month_rank`,
+            is_new_entry: sql`excluded.is_new_entry`,
+            flags: sql`excluded.flags`,
+          },
+        });
+    }
 
     inserted_count = entryValues.length;
-  });
+  } catch (err: any) {
+    return c.json({ error: String(err), stack: err.stack }, 500);
+  }
 
   // 5. Invalidate KV cache — uses prefix scan so parameterized variants are caught
   await Promise.allSettled([
