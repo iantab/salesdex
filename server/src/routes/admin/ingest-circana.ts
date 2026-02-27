@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull, or } from "drizzle-orm";
 import type { CloudflareBindings } from "../../types/bindings";
 import { createDb } from "../../db/client";
 import {
@@ -11,6 +11,7 @@ import {
   circana_market_totals,
   circana_entries,
 } from "../../db/schema";
+import { searchGame, getGameById } from "../../services/igdb";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -47,6 +48,44 @@ const IngestSchema = z.object({
     .optional(),
   entries: z.array(EntrySchema),
 });
+
+async function enrichGames(
+  env: CloudflareBindings,
+  gameIds: number[],
+): Promise<void> {
+  const db = createDb(env.DB);
+  for (const gameId of gameIds) {
+    const rows = await db
+      .select({ title_en: games.title_en, igdb_id: games.igdb_id })
+      .from(games)
+      .where(eq(games.id, gameId))
+      .limit(1);
+    if (rows.length === 0) continue;
+
+    try {
+      const row = rows[0];
+      const result =
+        row.igdb_id != null
+          ? await getGameById(env, row.igdb_id)
+          : await searchGame(env, row.title_en);
+      if (!result) continue;
+
+      const updateSet: Partial<typeof games.$inferInsert> = {
+        igdb_id: result.igdb_id,
+        cover_url: result.cover_url,
+        release_date_us: result.release_date_us,
+        release_date_jp: result.release_date_jp,
+      };
+      if (result.developer !== null) updateSet.developer = result.developer;
+      if (result.franchise !== null) updateSet.franchise = result.franchise;
+      if (result.title_jp !== null) updateSet.title_jp = result.title_jp;
+
+      await db.update(games).set(updateSet).where(eq(games.id, gameId));
+    } catch {
+      // Non-fatal: skip this game if IGDB lookup fails
+    }
+  }
+}
 
 app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   const payload = c.req.valid("json");
@@ -96,6 +135,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   // 3. Resolve publishers and games, insert entries
   const warnings: string[] = [];
   let inserted_count = 0;
+  const newGameIds: number[] = [];
 
   for (const entry of payload.entries) {
     // Resolve or create publisher
@@ -144,6 +184,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
         })
         .returning({ id: games.id });
       gameId = newGame[0].id;
+      newGameIds.push(gameId);
     }
 
     // Insert circana entry
@@ -167,6 +208,11 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
     c.env.KV.delete("cache:/analytics/streaks:"),
   ]);
 
+  // 5. Enrich newly created games with IGDB metadata in the background
+  if (newGameIds.length > 0) {
+    c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
+  }
+
   return c.json({
     data: {
       report_id: reportId,
@@ -174,6 +220,26 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
       warnings,
     },
   });
+});
+
+app.get("/games/enrich", async (c) => {
+  const db = createDb(c.env.DB);
+
+  const rows = await db
+    .select({ id: games.id })
+    .from(games)
+    .where(or(isNull(games.igdb_id), isNull(games.developer)));
+
+  if (rows.length === 0) {
+    return c.json({
+      data: { queued: 0, message: "All games already enriched" },
+    });
+  }
+
+  const ids = rows.map((r) => r.id);
+  c.executionCtx.waitUntil(enrichGames(c.env, ids));
+
+  return c.json({ data: { queued: ids.length } });
 });
 
 app.post("/games/:id", async (c) => {
