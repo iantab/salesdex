@@ -4,5 +4,13 @@ export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./migrations",
   dialect: "sqlite",
-  driver: "d1-http",
+  ...(process.env.LOCAL_DB_PATH
+    ? {
+        dbCredentials: {
+          url: process.env.LOCAL_DB_PATH,
+        },
+      }
+    : {
+        driver: "d1-http",
+      }),
 });
