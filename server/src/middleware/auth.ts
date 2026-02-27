@@ -4,15 +4,14 @@ import type { CloudflareBindings } from "../types/bindings";
 export const authMiddleware: MiddlewareHandler<{
   Bindings: CloudflareBindings;
 }> = async (c, next) => {
-  const jwtAssertion = c.req.header("Cf-Access-Jwt-Assertion");
+  if (c.env.DEV_MODE === "true") return next();
 
-  // In local dev (no CF_PAGES env var), skip auth if no header present
-  const isLocalDev = typeof (c.env as any).CF_PAGES === "undefined";
-  if (isLocalDev && !jwtAssertion) {
-    return next();
-  }
+  const authHeader = c.req.header("Authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : undefined;
 
-  if (!jwtAssertion) {
+  if (!token || token !== c.env.ADMIN_SECRET) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 

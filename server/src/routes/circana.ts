@@ -14,7 +14,7 @@ import {
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 const reportsQuerySchema = z.object({
-  year: z.coerce.number().optional(),
+  year: z.coerce.number().int().min(2000).max(2035).optional(),
   period_type: z.enum(["monthly", "annual"]).optional(),
 });
 

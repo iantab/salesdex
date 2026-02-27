@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { eq, isNull, inArray, sql } from "drizzle-orm";
 import type { CloudflareBindings } from "../../types/bindings";
 import { createDb } from "../../db/client";
+import { invalidateCachePrefix } from "../../middleware/cache";
 import {
   games,
   circana_reports,
@@ -16,8 +17,8 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 const EntrySchema = z.object({
   chart_type: z.enum(["overall", "nintendo", "playstation", "xbox"]),
-  rank: z.number().int(),
-  last_month_rank: z.number().int().nullable().optional(),
+  rank: z.number().int().min(1).max(1000),
+  last_month_rank: z.number().int().min(1).max(1000).nullable().optional(),
   is_new_entry: z.boolean().optional(),
   flags: z
     .object({
@@ -28,30 +29,40 @@ const EntrySchema = z.object({
     .strict()
     .optional(),
   game: z.object({
-    title_en: z.string(),
+    title_en: z.string().min(1).max(500),
   }),
 });
 
 const IngestSchema = z.object({
-  year: z.number().int(),
-  month: z.number().int().nullable().optional(),
+  year: z.number().int().min(2000).max(2035),
+  month: z.number().int().min(1).max(12).nullable().optional(),
   period_type: z.enum(["monthly", "annual"]),
-  period_start: z.string(),
-  period_end: z.string(),
-  tracking_weeks: z.number().int().optional(),
+  period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  tracking_weeks: z.number().int().min(1).max(53).optional(),
   market_totals: z
     .object({
-      total_market_spend: z.number().optional(),
-      content_spend: z.number().optional(),
-      hardware_spend: z.number().optional(),
-      accessory_spend: z.number().optional(),
-      notes: z.string().optional(),
+      total_market_spend: z.number().nonnegative().optional(),
+      content_spend: z.number().nonnegative().optional(),
+      hardware_spend: z.number().nonnegative().optional(),
+      accessory_spend: z.number().nonnegative().optional(),
+      notes: z.string().max(1000).optional(),
     })
     .optional(),
-  entries: z.array(EntrySchema),
+  entries: z.array(EntrySchema).min(1).max(200),
 });
 
-async function enrichGames(
+const UpdateGameSchema = z.object({
+  title_en: z.string().min(1).max(500).optional(),
+  igdb_id: z.number().int().positive().optional(),
+  release_date_us: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  cover_url: z.string().url().max(2000).optional(),
+});
+
+export async function enrichGames(
   env: CloudflareBindings,
   gameIds: number[],
 ): Promise<void> {
@@ -89,116 +100,134 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   const payload = c.req.valid("json");
   const db = createDb(c.env.DB);
 
-  // 1. Upsert report
-  const existingReport = await db
-    .select()
-    .from(circana_reports)
-    .where(
-      and(
-        eq(circana_reports.year, payload.year),
-        payload.month != null
-          ? eq(circana_reports.month, payload.month)
-          : eq(circana_reports.period_type, payload.period_type),
-        eq(circana_reports.period_type, payload.period_type),
-      ),
-    )
-    .limit(1);
-
-  let reportId: number;
-  if (existingReport.length > 0) {
-    reportId = existingReport[0].id;
-  } else {
-    const inserted = await db
-      .insert(circana_reports)
-      .values({
-        year: payload.year,
-        month: payload.month ?? null,
-        period_type: payload.period_type,
-        period_start: payload.period_start,
-        period_end: payload.period_end,
-        tracking_weeks: payload.tracking_weeks ?? null,
-      })
-      .returning({ id: circana_reports.id });
-    reportId = inserted[0].id;
-  }
-
-  // 2. Upsert market totals
-  if (payload.market_totals) {
-    await db.insert(circana_market_totals).values({
-      report_id: reportId,
-      ...payload.market_totals,
-    });
-  }
-
-  // 3. Resolve publishers and games, insert entries
   const warnings: string[] = [];
   let inserted_count = 0;
+  let reportId: number;
   const newGameIds: number[] = [];
 
-  // Phase 1: collect unique titles
-  const uniqueTitles = [
-    ...new Set(payload.entries.map((e) => e.game.title_en)),
-  ];
+  await db.transaction(async (tx) => {
+    // 1. Upsert report
+    const existingReport = await tx
+      .select({ id: circana_reports.id })
+      .from(circana_reports)
+      .where(
+        sql`${circana_reports.year} = ${payload.year}
+          AND ${circana_reports.period_type} = ${payload.period_type}
+          AND (
+            (${payload.month} IS NULL AND ${circana_reports.month} IS NULL)
+            OR ${circana_reports.month} = ${payload.month}
+          )`,
+      )
+      .limit(1);
 
-  // Phase 2: batch-fetch all existing games (1 query instead of N)
-  const existingGames = await db
-    .select({ id: games.id, title_en: games.title_en })
-    .from(games)
-    .where(inArray(games.title_en, uniqueTitles));
-
-  const titleToGameId = new Map<string, number>(
-    existingGames.map((g) => [g.title_en, g.id]),
-  );
-
-  // Phase 3: batch-insert missing games (1 query instead of N)
-  const missingTitles = uniqueTitles.filter((t) => !titleToGameId.has(t));
-  if (missingTitles.length > 0) {
-    const inserted = await db
-      .insert(games)
-      .values(missingTitles.map((title_en) => ({ title_en })))
-      .returning({ id: games.id, title_en: games.title_en });
-    for (const g of inserted) {
-      titleToGameId.set(g.title_en, g.id);
-      newGameIds.push(g.id);
+    if (existingReport.length > 0) {
+      reportId = existingReport[0].id;
+    } else {
+      const inserted = await tx
+        .insert(circana_reports)
+        .values({
+          year: payload.year,
+          month: payload.month ?? null,
+          period_type: payload.period_type,
+          period_start: payload.period_start,
+          period_end: payload.period_end,
+          tracking_weeks: payload.tracking_weeks ?? null,
+        })
+        .returning({ id: circana_reports.id });
+      reportId = inserted[0].id;
     }
-  }
 
-  // Phase 4: batch-insert all circana_entries (1 query instead of N)
-  const entryValues = payload.entries.map((entry) => ({
-    report_id: reportId,
-    game_id: titleToGameId.get(entry.game.title_en)!,
-    chart_type: entry.chart_type,
-    rank: entry.rank,
-    last_month_rank: entry.last_month_rank ?? null,
-    is_new_entry: entry.is_new_entry ?? false,
-    flags: entry.flags ? JSON.stringify(entry.flags) : null,
-  }));
+    // 2. Upsert market totals
+    if (payload.market_totals) {
+      await tx.insert(circana_market_totals).values({
+        report_id: reportId,
+        ...payload.market_totals,
+      });
+    }
 
-  await db.insert(circana_entries).values(entryValues);
-  inserted_count = entryValues.length;
+    // 3. Batch-resolve games: fetch existing, insert missing
+    const uniqueTitles = [
+      ...new Set(payload.entries.map((e) => e.game.title_en)),
+    ];
 
-  // 4. Invalidate KV cache keys for analytics routes
+    const existingGames = await tx
+      .select({ id: games.id, title_en: games.title_en })
+      .from(games)
+      .where(inArray(games.title_en, uniqueTitles));
+
+    const titleToGameId = new Map<string, number>(
+      existingGames.map((g) => [g.title_en, g.id]),
+    );
+
+    const missingTitles = uniqueTitles.filter((t) => !titleToGameId.has(t));
+    if (missingTitles.length > 0) {
+      const inserted = await tx
+        .insert(games)
+        .values(missingTitles.map((title_en) => ({ title_en })))
+        .returning({ id: games.id, title_en: games.title_en });
+      for (const g of inserted) {
+        titleToGameId.set(g.title_en, g.id);
+        newGameIds.push(g.id);
+      }
+    }
+
+    // 4. Upsert circana_entries — idempotent on re-ingest
+    const entryValues = payload.entries.map((entry) => ({
+      report_id: reportId,
+      game_id: titleToGameId.get(entry.game.title_en)!,
+      chart_type: entry.chart_type,
+      rank: entry.rank,
+      last_month_rank: entry.last_month_rank ?? null,
+      is_new_entry: entry.is_new_entry ?? false,
+      flags: entry.flags ? JSON.stringify(entry.flags) : null,
+    }));
+
+    await tx
+      .insert(circana_entries)
+      .values(entryValues)
+      .onConflictDoUpdate({
+        target: [
+          circana_entries.report_id,
+          circana_entries.game_id,
+          circana_entries.chart_type,
+        ],
+        set: {
+          rank: sql`excluded.rank`,
+          last_month_rank: sql`excluded.last_month_rank`,
+          is_new_entry: sql`excluded.is_new_entry`,
+          flags: sql`excluded.flags`,
+        },
+      });
+
+    inserted_count = entryValues.length;
+  });
+
+  // 5. Invalidate KV cache — uses prefix scan so parameterized variants are caught
   await Promise.allSettled([
-    c.env.KV.delete("cache:/analytics/publisher-share:"),
-    c.env.KV.delete("cache:/analytics/momentum:"),
-    c.env.KV.delete("cache:/analytics/streaks:"),
+    invalidateCachePrefix(c.env.KV, "cache:/analytics/publisher-share:"),
+    invalidateCachePrefix(c.env.KV, "cache:/analytics/momentum:"),
+    invalidateCachePrefix(c.env.KV, "cache:/analytics/streaks:"),
   ]);
 
-  // 5. Enrich newly created games with IGDB metadata in the background
+  // 6. Enrich new games with IGDB metadata — prefer Queue for durability
   if (newGameIds.length > 0) {
-    c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
+    if (c.env.IGDB_ENRICHMENT_QUEUE) {
+      await c.env.IGDB_ENRICHMENT_QUEUE.send({ game_ids: newGameIds });
+    } else {
+      c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
+    }
   }
 
   return c.json({
     data: {
-      report_id: reportId,
+      report_id: reportId!,
       inserted_count,
       warnings,
     },
   });
 });
 
-app.get("/games/enrich", async (c) => {
+app.post("/games/enrich", async (c) => {
   const db = createDb(c.env.DB);
 
   const rows = await db
@@ -213,33 +242,31 @@ app.get("/games/enrich", async (c) => {
   }
 
   const ids = rows.map((r) => r.id);
-  c.executionCtx.waitUntil(enrichGames(c.env, ids));
+
+  if (c.env.IGDB_ENRICHMENT_QUEUE) {
+    await c.env.IGDB_ENRICHMENT_QUEUE.send({ game_ids: ids });
+  } else {
+    c.executionCtx.waitUntil(enrichGames(c.env, ids));
+  }
 
   return c.json({ data: { queued: ids.length } });
 });
 
-app.post("/games/:id", async (c) => {
+app.post("/games/:id", zValidator("json", UpdateGameSchema), async (c) => {
   const id = Number(c.req.param("id"));
-  const db = createDb(c.env.DB);
-  const body = await c.req.json<Partial<typeof games.$inferInsert>>();
-
-  // Only allow safe metadata fields
-  const { title_en, igdb_id, release_date_us, cover_url } = body;
-  const update: Partial<typeof games.$inferInsert> = {};
-  if (title_en !== undefined) update.title_en = title_en;
-  if (igdb_id !== undefined) update.igdb_id = igdb_id;
-  if (release_date_us !== undefined) update.release_date_us = release_date_us;
-  if (cover_url !== undefined) update.cover_url = cover_url;
+  const update = c.req.valid("json");
 
   if (Object.keys(update).length === 0) {
     return c.json({ error: "No valid fields to update" }, 400);
   }
 
+  const db = createDb(c.env.DB);
   const rows = await db
     .update(games)
     .set(update)
     .where(eq(games.id, id))
     .returning();
+
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ data: rows[0] });
 });

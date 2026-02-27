@@ -84,6 +84,13 @@ export const circana_entries = sqliteTable(
       t.chart_type,
       t.report_id,
     ),
+    // Prevents duplicate entries for the same game+chart in a given report;
+    // also makes ingest idempotent via onConflictDoUpdate.
+    uniqueEntryIdx: uniqueIndex("unique_circana_entry").on(
+      t.report_id,
+      t.game_id,
+      t.chart_type,
+    ),
   }),
 );
 

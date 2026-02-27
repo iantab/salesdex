@@ -14,8 +14,10 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 const TTL_24H = 60 * 60 * 24;
 
 const publisherShareSchema = z.object({
-  year: z.coerce.number(),
-  chart_type: z.string().default("overall"),
+  year: z.coerce.number().int().min(2000).max(2035),
+  chart_type: z
+    .enum(["overall", "nintendo", "playstation", "xbox"])
+    .default("overall"),
 });
 
 app.get(

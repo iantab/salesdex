@@ -25,3 +25,26 @@ export const kvCache = (
     }
   };
 };
+
+/**
+ * Deletes all KV cache entries whose keys begin with `prefix`.
+ * Handles pagination so large caches are fully invalidated.
+ */
+export async function invalidateCachePrefix(
+  kv: KVNamespace,
+  prefix: string,
+): Promise<void> {
+  let cursor: string | undefined;
+  do {
+    const result = await kv.list({
+      prefix,
+      limit: 1000,
+      ...(cursor ? { cursor } : {}),
+    });
+    await Promise.allSettled(result.keys.map((k) => kv.delete(k.name)));
+    cursor = result.list_complete
+      ? undefined
+      : (result as KVNamespaceListResult<unknown, string> & { cursor: string })
+          .cursor;
+  } while (cursor);
+}

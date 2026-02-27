@@ -29,6 +29,13 @@
       "when": 1772165662346,
       "tag": "0003_familiar_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1772200000000,
+      "tag": "0004_add_unique_circana_entry",
+      "breakpoints": true
     }
   ]
 }
