@@ -1,0 +1,92 @@
+.game-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.15s;
+}
+
+.game-row:last-child {
+  border-bottom: none;
+}
+
+.game-row:hover {
+  background-color: var(--color-surface-2);
+}
+
+.game-row__rank {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+  min-width: 2rem;
+  text-align: right;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.game-row__cover {
+  flex-shrink: 0;
+  width: 48px;
+  height: 64px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.game-row__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.game-row__cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    var(--color-surface-2),
+    var(--color-border)
+  );
+}
+
+.game-row__title {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-badge {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+}
+
+.rank-badge--new {
+  background-color: rgba(74, 222, 128, 0.15);
+  color: var(--color-green);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.rank-badge--up {
+  background-color: rgba(74, 222, 128, 0.1);
+  color: var(--color-green);
+}
+
+.rank-badge--down {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--color-red);
+}
+
+.rank-badge--neutral {
+  color: var(--color-text-muted);
+}

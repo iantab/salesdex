@@ -1,4 +1,4 @@
-# game-sales-tracker
+# Salesdex
 
 A REST API for Circana game sales data, backed by Cloudflare Workers, D1 (SQLite), and KV.
 
