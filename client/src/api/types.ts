@@ -24,6 +24,12 @@ export interface ReportDetail {
   market_totals: MarketTotals | null;
 }
 
+export interface GameFlags {
+  no_digital?: boolean;
+  no_nintendo_digital?: boolean;
+  no_nintendo_xbox_digital?: boolean;
+}
+
 export interface ChartEntry {
   id: number;
   rank: number;

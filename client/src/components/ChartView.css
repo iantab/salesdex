@@ -17,3 +17,28 @@
   padding: 3rem 1rem;
   margin: 0;
 }
+
+.digital-legend {
+  background-color: rgba(251, 191, 36, 0.06);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.digital-legend__title {
+  font-weight: 600;
+  color: #fbbf24;
+  margin-bottom: 0.4rem;
+}
+
+.digital-legend__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.digital-legend__item strong {
+  color: var(--color-text);
+}

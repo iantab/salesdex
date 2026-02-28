@@ -41,6 +41,7 @@ export interface IGDBResult {
 
 interface IGDBRawGame {
   id: number;
+  name?: string;
   slug?: string;
   cover?: { url: string };
   first_release_date?: number;
@@ -127,6 +128,42 @@ function parseIGDBGame(game: IGDBRawGame): IGDBResult {
   };
 }
 
+function similarity(a: string, b: string): number {
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .trim();
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (na === nb) return 1;
+  if (na.length < 2 || nb.length < 2) return 0;
+  const bigrams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const bg = s.slice(i, i + 2);
+      m.set(bg, (m.get(bg) ?? 0) + 1);
+    }
+    return m;
+  };
+  const bA = bigrams(na);
+  const bB = bigrams(nb);
+  let intersection = 0;
+  for (const [bg, count] of bA) {
+    intersection += Math.min(count, bB.get(bg) ?? 0);
+  }
+  return (2 * intersection) / (na.length - 1 + (nb.length - 1));
+}
+
+function pickBest(results: IGDBRawGame[], query: string): IGDBRawGame {
+  return results.reduce((best, candidate) => {
+    return similarity(candidate.name ?? "", query) >
+      similarity(best.name ?? "", query)
+      ? candidate
+      : best;
+  });
+}
+
 export async function searchGame(
   env: CloudflareBindings,
   title: string,
@@ -137,7 +174,7 @@ export async function searchGame(
 
   const doExactSearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, '\\"');
-    const body = `fields ${IGDB_FIELDS};\nwhere name ~ "${sanitized}";\nlimit 1;`;
+    const body = `fields ${IGDB_FIELDS};\nwhere name ~ "${sanitized}";\nlimit 5;`;
 
     const res = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
@@ -157,7 +194,7 @@ export async function searchGame(
 
   const doFuzzySearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, "");
-    const body = `fields ${IGDB_FIELDS};\nsearch "${sanitized}";\nlimit 1;`;
+    const body = `fields ${IGDB_FIELDS};\nsearch "${sanitized}";\nlimit 5;`;
 
     const res = await fetch("https://api.igdb.com/v4/games", {
       method: "POST",
@@ -177,6 +214,7 @@ export async function searchGame(
 
   // 1. Try an exact match first
   let results = await doExactSearch(cleanTitle);
+  let query = cleanTitle;
 
   // 2. If no exact match, try a fuzzy text search
   if (results.length === 0) {
@@ -189,6 +227,7 @@ export async function searchGame(
     (cleanTitle.includes(" - ") || cleanTitle.includes(": "))
   ) {
     const shortTitle = cleanTitle.split(/ - |: /)[0].trim();
+    query = shortTitle;
     results = await doExactSearch(shortTitle);
 
     if (results.length === 0) {
@@ -197,7 +236,7 @@ export async function searchGame(
   }
 
   if (results.length === 0) return null;
-  return parseIGDBGame(results[0]);
+  return parseIGDBGame(pickBest(results, query));
 }
 
 export async function getGameById(

@@ -45,6 +45,7 @@ export function ChartView({ reportId, chartType }: Props) {
 
   const entries = chartsQuery.data ?? [];
   const detail = detailQuery.data;
+  const hasAnyFlags = entries.some((e) => e.flags != null && e.flags !== "");
 
   return (
     <>
@@ -56,15 +57,38 @@ export function ChartView({ reportId, chartType }: Props) {
         {entries.length === 0 ? (
           <p className="chart-view__empty">No data for this chart.</p>
         ) : (
-          <div className="chart-view__list">
-            {entries.map((entry) => (
-              <GameRow
-                key={entry.id}
-                entry={entry}
-                onClick={() => setSelectedGameId(entry.game_id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="chart-view__list">
+              {entries.map((entry) => (
+                <GameRow
+                  key={entry.id}
+                  entry={entry}
+                  onClick={() => setSelectedGameId(entry.game_id)}
+                />
+              ))}
+            </div>
+            {hasAnyFlags && (
+              <div className="digital-legend">
+                <div className="digital-legend__title">
+                  ⓘ Digital Data Notes
+                </div>
+                <div className="digital-legend__items">
+                  <div className="digital-legend__item">
+                    <strong>No Digital</strong> — Physical sales only; digital
+                    revenue excluded entirely.
+                  </div>
+                  <div className="digital-legend__item">
+                    <strong>No Nintendo Digital</strong> — Nintendo eShop sales
+                    excluded; other platforms' digital included.
+                  </div>
+                  <div className="digital-legend__item">
+                    <strong>No N+X Digital</strong> — Nintendo &amp; Xbox
+                    digital excluded; PlayStation digital sales included.
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
       {selectedGameId !== null && (

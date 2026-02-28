@@ -1,6 +1,25 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import type { ChartEntry } from "../api/types";
+import type { ChartEntry, GameFlags } from "../api/types";
 import "./GameRow.css";
+
+function parseFlags(flags: string | null): GameFlags {
+  if (!flags) return {};
+  try {
+    return JSON.parse(flags) as GameFlags;
+  } catch {
+    return {};
+  }
+}
+
+function FlagPill({ label }: { label: string }) {
+  return <span className="flag-pill">{label}</span>;
+}
+
+const FLAG_LABELS: { key: keyof GameFlags; label: string }[] = [
+  { key: "no_digital", label: "No Digital" },
+  { key: "no_nintendo_digital", label: "No Nintendo Digital" },
+  { key: "no_nintendo_xbox_digital", label: "No N+X Digital" },
+];
 
 interface Props {
   entry: ChartEntry;
@@ -71,6 +90,17 @@ export function GameRow({ entry, onClick }: Props) {
         )}
       </div>
       <span className="game-row__title">{entry.title_en}</span>
+      {(() => {
+        const flags = parseFlags(entry.flags);
+        const pills = FLAG_LABELS.filter(({ key }) => flags[key]);
+        return pills.length > 0 ? (
+          <div className="game-row__flags">
+            {pills.map(({ key, label }) => (
+              <FlagPill key={key} label={label} />
+            ))}
+          </div>
+        ) : null;
+      })()}
       <RankBadge entry={entry} />
     </div>
   );

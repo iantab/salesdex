@@ -151,3 +151,20 @@
 .rank-badge--neutral {
   color: var(--color-text-muted);
 }
+
+.game-row__flags {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.flag-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background-color: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  white-space: nowrap;
+}
