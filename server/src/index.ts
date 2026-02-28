@@ -8,7 +8,6 @@ import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { enrichGames } from "./routes/admin/ingest-circana";
 import gamesRoutes from "./routes/games";
 import circanaRoutes from "./routes/circana";
-import analyticsRoutes from "./routes/analytics";
 import adminRoutes from "./routes/admin/ingest-circana";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -29,7 +28,6 @@ app.use(
 // Rate limit all public routes (no-op if RATE_LIMITER binding is not configured)
 app.use("/games/*", rateLimitMiddleware);
 app.use("/circana/*", rateLimitMiddleware);
-app.use("/analytics/*", rateLimitMiddleware);
 
 app.get("/", (c) => c.json({ status: "ok" }));
 
