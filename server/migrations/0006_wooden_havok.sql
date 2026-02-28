@@ -1,1 +1,1 @@
-CREATE UNIQUE INDEX `unique_circana_entry` ON `circana_entries` (`report_id`,`game_id`,`chart_type`);
+CREATE UNIQUE INDEX IF NOT EXISTS `unique_circana_entry` ON `circana_entries` (`report_id`,`game_id`,`chart_type`);
