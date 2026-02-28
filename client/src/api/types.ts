@@ -61,6 +61,13 @@ export interface IgdbDetail {
   cover_url: string | null;
 }
 
+export interface GameSearchResult {
+  id: number;
+  title_en: string;
+  release_date_us: string | null;
+  cover_url: string | null;
+}
+
 export interface TrendEntry {
   report_id: number;
   year: number;

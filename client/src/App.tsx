@@ -4,6 +4,7 @@ import type { ChartType } from "./api/types";
 import { fetchReports } from "./api/circana";
 import { ReportSelector } from "./components/ReportSelector";
 import { ChartView } from "./components/ChartView";
+import { GameSearch } from "./components/GameSearch";
 import { Spinner } from "./components/Spinner";
 import { ErrorMessage } from "./components/ErrorMessage";
 import "./App.css";
@@ -59,10 +60,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Salesdex</h1>
-        <p className="app-header__tagline">
-          US video game sales rankings — powered by Circana data
-        </p>
+        <div className="app-header__left">
+          <h1>Salesdex</h1>
+          <p className="app-header__tagline">
+            US video game sales rankings — powered by Circana data
+          </p>
+        </div>
+        <GameSearch />
       </header>
       <main className="app-main">
         {reportsQuery.isPending && <Spinner />}
