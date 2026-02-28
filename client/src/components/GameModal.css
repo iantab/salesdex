@@ -175,3 +175,69 @@
   text-align: center;
   padding: 1.5rem;
 }
+
+.modal--wide {
+  max-width: 720px;
+}
+
+.modal__chart-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.modal__chart-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
+}
+
+.modal__chart-empty,
+.modal__chart-error {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 1.5rem 0;
+}
+
+.modal__chart-empty {
+  color: var(--color-text-muted);
+}
+.modal__chart-error {
+  color: var(--color-red);
+}
+
+.modal__chart-loading {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal__chart-toggles {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.modal__chart-toggle {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s;
+}
+
+.modal__chart-toggle--inactive {
+  opacity: 0.35;
+}
+.modal__chart-toggle--active {
+  color: var(--color-text);
+}

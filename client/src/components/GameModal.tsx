@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchGame, fetchGameIgdb } from "../api/games";
+import { fetchTrends } from "../api/circana";
 import { Spinner } from "./Spinner";
+import { RankHistoryChart } from "./RankHistoryChart";
 import "./GameModal.css";
+import * as React from "react";
 
 interface Props {
   gameId: number;
@@ -28,6 +31,11 @@ export function GameModal({ gameId, onClose }: Props) {
     queryFn: () => fetchGameIgdb(gameId),
     enabled: query.data?.igdb_id != null,
     retry: false,
+  });
+
+  const trendsQuery = useQuery({
+    queryKey: ["game-trends", gameId],
+    queryFn: () => fetchTrends(gameId),
   });
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -61,7 +69,7 @@ export function GameModal({ gameId, onClose }: Props) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="modal">
+      <div className={`modal${trendsQuery.data?.length ? " modal--wide" : ""}`}>
         <button className="modal__close" onClick={onClose} aria-label="Close">
           ✕
         </button>
@@ -137,6 +145,26 @@ export function GameModal({ gameId, onClose }: Props) {
                 </a>
               )}
             </div>
+          </div>
+        )}
+
+        {game && (
+          <div className="modal__chart-section">
+            <p className="modal__chart-title">Rank History</p>
+            {trendsQuery.isPending && (
+              <div className="modal__chart-loading">
+                <Spinner />
+              </div>
+            )}
+            {trendsQuery.isError && (
+              <p className="modal__chart-error">Could not load rank history.</p>
+            )}
+            {trendsQuery.data?.length === 0 && (
+              <p className="modal__chart-empty">No rank history available.</p>
+            )}
+            {trendsQuery.data && trendsQuery.data.length > 0 && (
+              <RankHistoryChart data={trendsQuery.data} />
+            )}
           </div>
         )}
       </div>

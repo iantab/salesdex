@@ -54,3 +54,13 @@ export interface IgdbDetail {
   release_date_jp: string | null;
   cover_url: string | null;
 }
+
+export interface TrendEntry {
+  report_id: number;
+  year: number;
+  month: number | null;
+  period_end: string | null;
+  chart_type: ChartType;
+  rank: number;
+  last_month_rank: number | null;
+}
