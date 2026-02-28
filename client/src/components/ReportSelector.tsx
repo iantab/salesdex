@@ -8,8 +8,8 @@ const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "xbox", label: "Xbox" },
 ];
 
-function monthName(month: number) {
-  return new Date(2000, month - 1).toLocaleString("en-US", { month: "long" });
+function monthAbbr(month: number) {
+  return new Date(2000, month - 1).toLocaleString("en-US", { month: "short" });
 }
 
 interface Props {
@@ -40,38 +40,38 @@ export function ReportSelector({
   return (
     <div className="report-selector">
       <div className="report-selector__row">
-        <label className="report-selector__label" htmlFor="year-select">
-          Year
-        </label>
-        <select
-          id="year-select"
-          className="report-selector__select"
-          value={selectedYear ?? ""}
-          onChange={(e) => onYearChange(Number(e.target.value))}
-        >
+        <span className="report-selector__label">Year</span>
+        <div className="pill-group" role="group" aria-label="Year">
           {years.map((y) => (
-            <option key={y} value={y}>
+            <button
+              key={y}
+              className={`pill-btn${selectedYear === y ? " pill-btn--active" : ""}`}
+              onClick={() => onYearChange(y)}
+              aria-pressed={selectedYear === y}
+            >
               {y}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
 
-        <label className="report-selector__label" htmlFor="month-select">
+        <span className="report-selector__label report-selector__label--month">
           Month
-        </label>
-        <select
-          id="month-select"
-          className="report-selector__select"
-          value={selectedMonth ?? ""}
-          onChange={(e) => onMonthChange(Number(e.target.value))}
-        >
+        </span>
+        <div className="pill-group" role="group" aria-label="Month">
           {monthsForYear.map((m) => (
-            <option key={m} value={m}>
-              {monthName(m)}
-            </option>
+            <button
+              key={m}
+              className={`pill-btn${selectedMonth === m ? " pill-btn--active" : ""}`}
+              onClick={() => onMonthChange(m)}
+              aria-pressed={selectedMonth === m}
+            >
+              {monthAbbr(m)}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
+
+      <hr className="report-selector__divider" />
 
       <div className="chart-tabs" role="tablist" aria-label="Chart type">
         {CHART_TYPES.map((ct) => (
