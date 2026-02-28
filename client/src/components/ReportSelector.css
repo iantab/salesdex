@@ -31,6 +31,23 @@
   margin: 0;
 }
 
+/* Year dropdown */
+.report-selector__select {
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.report-selector__select:focus {
+  border-color: var(--color-accent);
+}
+
 /* Pill button group */
 .pill-group {
   display: flex;

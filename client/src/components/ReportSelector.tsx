@@ -40,19 +40,21 @@ export function ReportSelector({
   return (
     <div className="report-selector">
       <div className="report-selector__row">
-        <span className="report-selector__label">Year</span>
-        <div className="pill-group" role="group" aria-label="Year">
+        <label className="report-selector__label" htmlFor="year-select">
+          Year
+        </label>
+        <select
+          id="year-select"
+          className="report-selector__select"
+          value={selectedYear ?? ""}
+          onChange={(e) => onYearChange(Number(e.target.value))}
+        >
           {years.map((y) => (
-            <button
-              key={y}
-              className={`pill-btn${selectedYear === y ? " pill-btn--active" : ""}`}
-              onClick={() => onYearChange(y)}
-              aria-pressed={selectedYear === y}
-            >
+            <option key={y} value={y}>
               {y}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
 
         <span className="report-selector__label report-selector__label--month">
           Month
