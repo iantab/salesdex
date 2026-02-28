@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-26",
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "bfee823e97094d939af8408c3b5e7cf3"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "game-sales-tracker",
+      "database_id": "c030a168-419f-4f2b-a6a8-ed4710cbf6e5"
+    }
+  ]
+
+  // ── Cloudflare Queue for async IGDB enrichment ──────────────────────────
+  // Setup:
+  //   1. wrangler queues create igdb-enrichment
+  //   2. Uncomment the block below
+  //
+  // "queues": {
+  //   "producers": [
+  //     { "binding": "IGDB_ENRICHMENT_QUEUE", "queue": "igdb-enrichment" }
+  //   ],
+  //   "consumers": [
+  //     {
+  //       "queue": "igdb-enrichment",
+  //       "max_batch_size": 10,
+  //       "max_retries": 3,
+  //       "dead_letter_queue": "igdb-enrichment-dlq"
+  //     }
+  //   ]
+  // },
+
+  // ── Rate Limiting API ────────────────────────────────────────────────────
+  // Setup: uncomment and adjust limit/period as needed.
+  // Docs: https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+  //
+  // "rate_limiting": [
+  //   {
+  //     "binding": "RATE_LIMITER",
+  //     "namespace_id": "1",
+  //     "simple": { "limit": 100, "period": 60 }
+  //   }
+  // ]
+}

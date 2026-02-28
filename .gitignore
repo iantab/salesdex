@@ -15,7 +15,6 @@ build/
 # ── Cloudflare / Wrangler ─────────────────────────────────────────────────────
 .wrangler/
 .cloudflare/
-server/wrangler.jsonc
 
 # ── Database ──────────────────────────────────────────────────────────────────
 *.sqlite
