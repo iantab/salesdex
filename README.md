@@ -123,28 +123,3 @@ cd server && bunx wrangler d1 migrations apply game-sales-tracker
   }>
 }
 ```
-
-
-## Deploying
-
-**Server:**
-
-```bash
-cd server && bun run deploy
-```
-
-**Client:** deploys automatically via GitHub Actions to GitHub Pages on push to `master`.
-
-## Other scripts
-
-```bash
-# Open Drizzle Studio (local DB browser)
-cd server && bun run db:studio
-
-# Regenerate Cloudflare Worker types
-cd server && bun run cf-typegen
-
-# Build / preview the client
-cd client && bun run build
-cd client && bun run preview
-```
