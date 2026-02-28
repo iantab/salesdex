@@ -35,7 +35,6 @@ app.get("/", (c) => c.json({ status: "ok" }));
 
 app.route("/games", gamesRoutes);
 app.route("/circana", circanaRoutes);
-app.route("/analytics", analyticsRoutes);
 
 // Admin routes — protected by rate limiting and auth middleware
 // POST /admin/ingest/circana, POST /admin/games/:id, POST /admin/games/enrich, GET /admin/queue
