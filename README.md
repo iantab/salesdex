@@ -1,9 +1,6 @@
 # Salesdex
 
-A website for browsing US video game sales rankings powered by Circana data.
-
-**Live site**: https://iantab.github.io/salesdex/
-**API**: https://server.salesdex.workers.dev
+A website for browsing video game sales rankings.
 
 ## Stack
 
@@ -127,7 +124,6 @@ cd server && bunx wrangler d1 migrations apply game-sales-tracker
 }
 ```
 
-Artifact payloads are stored at `artifacts/circana/YYYY/MM/ingest.json`.
 
 ## Deploying
 
