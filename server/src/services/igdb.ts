@@ -132,7 +132,9 @@ function similarity(a: string, b: string): number {
   const normalize = (s: string) =>
     s
       .toLowerCase()
+      .replace(/[/&+]/g, " ")
       .replace(/[^a-z0-9 ]/g, "")
+      .replace(/\s+/g, " ")
       .trim();
   const na = normalize(a);
   const nb = normalize(b);
@@ -155,13 +157,16 @@ function similarity(a: string, b: string): number {
   return (2 * intersection) / (na.length - 1 + (nb.length - 1));
 }
 
-function pickBest(results: IGDBRawGame[], query: string): IGDBRawGame {
-  return results.reduce((best, candidate) => {
+const MIN_SIMILARITY = 0.5;
+
+function pickBest(results: IGDBRawGame[], query: string): IGDBRawGame | null {
+  const best = results.reduce((best, candidate) => {
     return similarity(candidate.name ?? "", query) >
       similarity(best.name ?? "", query)
       ? candidate
       : best;
   });
+  return similarity(best.name ?? "", query) >= MIN_SIMILARITY ? best : null;
 }
 
 export async function searchGame(
@@ -171,6 +176,11 @@ export async function searchGame(
   const token = await getAccessToken(env);
 
   const cleanTitle = title.replace(/[®™©]/g, "").trim();
+  // Sanitize separators for the IGDB query — /&+ break IGDB's query parser
+  const searchTitle = cleanTitle
+    .replace(/[/&+]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   const doExactSearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, '\\"');
@@ -213,21 +223,20 @@ export async function searchGame(
   };
 
   // 1. Try an exact match first
-  let results = await doExactSearch(cleanTitle);
-  let query = cleanTitle;
+  let results = await doExactSearch(searchTitle);
+  const query = cleanTitle;
 
   // 2. If no exact match, try a fuzzy text search
   if (results.length === 0) {
-    results = await doFuzzySearch(cleanTitle);
+    results = await doFuzzySearch(searchTitle);
   }
 
   // 3. Fallback: if there's a subtitle, search just the main title part
   if (
     results.length === 0 &&
-    (cleanTitle.includes(" - ") || cleanTitle.includes(": "))
+    (searchTitle.includes(" - ") || searchTitle.includes(": "))
   ) {
-    const shortTitle = cleanTitle.split(/ - |: /)[0].trim();
-    query = shortTitle;
+    const shortTitle = searchTitle.split(/ - |: /)[0].trim();
     results = await doExactSearch(shortTitle);
 
     if (results.length === 0) {
@@ -236,7 +245,9 @@ export async function searchGame(
   }
 
   if (results.length === 0) return null;
-  return parseIGDBGame(pickBest(results, query));
+  const best = pickBest(results, query);
+  if (!best) return null;
+  return parseIGDBGame(best);
 }
 
 export async function getGameById(
