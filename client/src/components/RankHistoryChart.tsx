@@ -143,8 +143,8 @@ export function RankHistoryChart({ data }: Props) {
               borderRadius: 6,
               fontSize: 12,
             }}
-            formatter={(value: number, name: string) => [
-              `#${value}`,
+            formatter={(value: number | undefined, name: string) => [
+              value != null ? `#${value}` : "—",
               PLATFORM_LABELS[name as ChartType] ?? name,
             ]}
             labelStyle={{ color: "var(--color-text-muted)", marginBottom: 4 }}
