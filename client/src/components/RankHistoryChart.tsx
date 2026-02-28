@@ -59,6 +59,32 @@ export function RankHistoryChart({ data }: Props) {
     point[entry.chart_type] = entry.rank;
   }
 
+  // Fill in missing months so the x-axis is continuous and gaps are visible
+  const sortedKeys = Array.from(pointMap.keys()).sort();
+  if (sortedKeys.length > 1 && sortedKeys[0].includes("-")) {
+    const [startYear, startMonth] = sortedKeys[0].split("-").map(Number);
+    const [endYear, endMonth] = sortedKeys[sortedKeys.length - 1]
+      .split("-")
+      .map(Number);
+    let year = startYear;
+    let month = startMonth;
+    while (year < endYear || (year === endYear && month <= endMonth)) {
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      if (!pointMap.has(key)) {
+        const label = new Date(year, month - 1).toLocaleDateString("en-US", {
+          month: "short",
+          year: "2-digit",
+        });
+        pointMap.set(key, { label, period_end: key });
+      }
+      month++;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+  }
+
   const chartData = Array.from(pointMap.values()).sort((a, b) =>
     a.period_end.localeCompare(b.period_end),
   );
