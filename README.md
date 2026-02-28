@@ -1,22 +1,26 @@
 # Salesdex
 
-A REST API for Circana game sales data, backed by Cloudflare Workers, D1 (SQLite), and KV.
+A website for browsing US video game sales rankings powered by Circana data.
+
+**Live site**: https://iantab.github.io/salesdex/
+**API**: https://server.salesdex.workers.dev
 
 ## Stack
 
-- **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/)
-- **Framework**: [Hono](https://hono.dev/)
-- **ORM**: [Drizzle ORM](https://orm.drizzle.team/) with D1
-- **Database**: Cloudflare D1 (SQLite)
-- **Cache**: Cloudflare KV
-- **Package manager**: [Bun](https://bun.sh/)
-- **CLI**: [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
+| Client         | Server             |
+| -------------- | ------------------ |
+| React 19       | Hono               |
+| Vite           | Cloudflare Workers |
+| TanStack Query | D1 (SQLite) + KV   |
+| Recharts       | Drizzle ORM        |
+|                | Bun / Wrangler     |
 
 ## Prerequisites
 
 - [Bun](https://bun.sh/) installed
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed and authenticated (`wrangler login`)
 - A Cloudflare account
+- Twitch credentials for [IGDB](https://www.igdb.com/api) access (game metadata enrichment)
 
 ## First-time setup
 
@@ -37,19 +41,24 @@ TWITCH_CLIENT_SECRET=...
 
 # 5. Install dependencies
 cd server && bun install
+cd ../client && bun install
 ```
 
-> **Note:** `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are Twitch credentials used for [IGDB](https://www.igdb.com/api) API access (game metadata enrichment).
-
 ## Running locally
+
+**Server** — http://localhost:8787
 
 ```bash
 cd server && bun run dev
 ```
 
-The API will be available at http://localhost:8787.
-
 Auth middleware is skipped in local dev when the Cloudflare Access JWT header is absent, so all endpoints are accessible without credentials.
+
+**Client** — http://localhost:5173 (proxies `/games`, `/circana`, `/admin` to 8787)
+
+```bash
+cd client && bun run dev
+```
 
 ## Migrations
 
@@ -65,32 +74,70 @@ cd server && bunx wrangler d1 migrations apply game-sales-tracker
 
 ### Public
 
-| Method | Path                         | Description                       |
-| ------ | ---------------------------- | --------------------------------- |
-| GET    | `/games`                     | List games                        |
-| GET    | `/games/:id`                 | Get game by ID                    |
-| GET    | `/games/:id/circana`         | Get Circana sales data for a game |
-| GET    | `/circana/reports`           | List Circana reports              |
-| GET    | `/circana/charts`            | Chart data                        |
-| GET    | `/circana/trends`            | Trend data                        |
-| GET    | `/publishers`                | List publishers                   |
-| GET    | `/analytics/publisher-share` | Publisher market share            |
-| GET    | `/analytics/momentum`        | Game momentum scores              |
-| GET    | `/analytics/streaks`         | Sales streak data                 |
+| Method | Path                   | Description                                                   |
+| ------ | ---------------------- | ------------------------------------------------------------- |
+| GET    | `/games`               | List games (query: `search`, `page`, `pageSize`)              |
+| GET    | `/games/:id`           | Get game by ID                                                |
+| GET    | `/games/:id/igdb`      | Get IGDB metadata for a game                                  |
+| GET    | `/games/:id/circana`   | Get all Circana entries for a game                            |
+| GET    | `/circana/reports`     | List reports (query: `year`, `period_type`)                   |
+| GET    | `/circana/reports/:id` | Get single report + market totals                             |
+| GET    | `/circana/charts`      | Chart entries for a report (query: `report_id`, `chart_type`) |
+| GET    | `/circana/trends`      | Rank history for a game (query: `game_id`, `from`, `to`)      |
 
 ### Admin (Cloudflare Access JWT required)
 
-| Method | Path                    | Description             |
-| ------ | ----------------------- | ----------------------- |
-| POST   | `/admin/ingest/circana` | Ingest a Circana report |
-| POST   | `/admin/games/:id`      | Update game data        |
-| GET    | `/admin/games/enrich`   | Enrich games via IGDB   |
+| Method | Path                    | Description                                      |
+| ------ | ----------------------- | ------------------------------------------------ |
+| POST   | `/admin/ingest/circana` | Ingest a Circana report                          |
+| POST   | `/admin/games/:id`      | Update game data                                 |
+| POST   | `/admin/games/enrich`   | Trigger IGDB enrichment for all unenriched games |
+
+## Ingest payload schema
+
+`POST /admin/ingest/circana` accepts JSON matching this shape:
+
+```ts
+{
+  year: number,                         // e.g. 2024
+  month: number | null,                 // 1–12, null for annual reports
+  period_type: "monthly" | "annual",
+  period_start: string,                 // "YYYY-MM-DD"
+  period_end: string,                   // "YYYY-MM-DD"
+  tracking_weeks?: number,
+  market_totals?: {
+    total_market_spend?: number,
+    content_spend?: number,
+    hardware_spend?: number,
+    accessory_spend?: number,
+    notes?: string
+  },
+  entries: Array<{
+    chart_type: "overall" | "nintendo" | "playstation" | "xbox",
+    rank: number,
+    last_month_rank?: number | null,
+    is_new_entry?: boolean,
+    flags?: {
+      no_nintendo_digital?: boolean,
+      no_digital?: boolean,
+      no_nintendo_xbox_digital?: boolean
+    },
+    game: { title_en: string }
+  }>
+}
+```
+
+Artifact payloads are stored at `artifacts/circana/YYYY/MM/ingest.json`.
 
 ## Deploying
+
+**Server:**
 
 ```bash
 cd server && bun run deploy
 ```
+
+**Client:** deploys automatically via GitHub Actions to GitHub Pages on push to `master`.
 
 ## Other scripts
 
@@ -100,4 +147,8 @@ cd server && bun run db:studio
 
 # Regenerate Cloudflare Worker types
 cd server && bun run cf-typegen
+
+# Build / preview the client
+cd client && bun run build
+cd client && bun run preview
 ```
