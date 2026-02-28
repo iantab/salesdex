@@ -186,7 +186,7 @@ export function RankHistoryChart({ data }: Props) {
                 dataKey={p}
                 stroke={PLATFORM_COLORS[p]}
                 strokeWidth={2}
-                dot={false}
+                dot={{ r: 3 }}
                 connectNulls={false}
                 isAnimationActive={false}
               />
