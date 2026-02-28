@@ -35,7 +35,7 @@ export function ReportSelector({
   const monthsForYear = reports
     .filter((r) => r.year === selectedYear && r.month != null)
     .map((r) => r.month as number)
-    .sort((a, b) => b - a);
+    .sort((a, b) => a - b);
 
   return (
     <div className="report-selector">
