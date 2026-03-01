@@ -1,3 +1,7 @@
+import type { createDb } from "../db/client";
+
+export type AppVariables = { db: ReturnType<typeof createDb> };
+
 export interface CloudflareBindings {
   DB: D1Database;
   KV: KVNamespace;

@@ -157,6 +157,25 @@ function similarity(a: string, b: string): number {
   return (2 * intersection) / (na.length - 1 + (nb.length - 1));
 }
 
+async function igdbPost(
+  env: CloudflareBindings,
+  token: string,
+  body: string,
+): Promise<IGDBRawGame[]> {
+  const res = await fetch("https://api.igdb.com/v4/games", {
+    method: "POST",
+    headers: {
+      "Client-ID": env.TWITCH_CLIENT_ID,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "text/plain",
+    },
+    body,
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`IGDB request failed: ${res.status}`);
+  return res.json<IGDBRawGame[]>();
+}
+
 const MIN_SIMILARITY = 0.5;
 
 function pickBest(results: IGDBRawGame[], query: string): IGDBRawGame | null {
@@ -182,44 +201,22 @@ export async function searchGame(
     .replace(/\s+/g, " ")
     .trim();
 
-  const doExactSearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
+  const doExactSearch = (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, '\\"');
-    const body = `fields ${IGDB_FIELDS};\nwhere name ~ "${sanitized}";\nlimit 5;`;
-
-    const res = await fetch("https://api.igdb.com/v4/games", {
-      method: "POST",
-      headers: {
-        "Client-ID": env.TWITCH_CLIENT_ID,
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "text/plain",
-      },
-      body,
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!res.ok)
-      throw new Error(`IGDB exact search request failed: ${res.status}`);
-    return res.json<IGDBRawGame[]>();
+    return igdbPost(
+      env,
+      token,
+      `fields ${IGDB_FIELDS};\nwhere name ~ "${sanitized}";\nlimit 5;`,
+    );
   };
 
-  const doFuzzySearch = async (searchTitle: string): Promise<IGDBRawGame[]> => {
+  const doFuzzySearch = (searchTitle: string): Promise<IGDBRawGame[]> => {
     const sanitized = searchTitle.replace(/"/g, "");
-    const body = `fields ${IGDB_FIELDS};\nsearch "${sanitized}";\nlimit 5;`;
-
-    const res = await fetch("https://api.igdb.com/v4/games", {
-      method: "POST",
-      headers: {
-        "Client-ID": env.TWITCH_CLIENT_ID,
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "text/plain",
-      },
-      body,
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!res.ok)
-      throw new Error(`IGDB fuzzy search request failed: ${res.status}`);
-    return res.json<IGDBRawGame[]>();
+    return igdbPost(
+      env,
+      token,
+      `fields ${IGDB_FIELDS};\nsearch "${sanitized}";\nlimit 5;`,
+    );
   };
 
   // 1. Try an exact match first
@@ -255,23 +252,11 @@ export async function getGameById(
   igdbId: number,
 ): Promise<IGDBResult | null> {
   const token = await getAccessToken(env);
-
-  const body = `fields ${IGDB_FIELDS};\nwhere id = ${igdbId};\nlimit 1;`;
-
-  const res = await fetch("https://api.igdb.com/v4/games", {
-    method: "POST",
-    headers: {
-      "Client-ID": env.TWITCH_CLIENT_ID,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "text/plain",
-    },
-    body,
-    signal: AbortSignal.timeout(5000),
-  });
-
-  if (!res.ok) throw new Error(`IGDB request failed: ${res.status}`);
-
-  const results = await res.json<IGDBRawGame[]>();
+  const results = await igdbPost(
+    env,
+    token,
+    `fields ${IGDB_FIELDS};\nwhere id = ${igdbId};\nlimit 1;`,
+  );
   if (!results || results.length === 0) return null;
   return parseIGDBGame(results[0]);
 }

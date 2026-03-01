@@ -2,12 +2,15 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, like, sql } from "drizzle-orm";
-import type { CloudflareBindings } from "../types/bindings";
-import { createDb } from "../db/client";
+import type { CloudflareBindings, AppVariables } from "../types/bindings";
 import { games, circana_entries, circana_reports } from "../db/schema";
 import { getGameById } from "../services/igdb";
+import { parseIntParam } from "../lib/params";
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
+const app = new Hono<{
+  Bindings: CloudflareBindings;
+  Variables: AppVariables;
+}>();
 
 const listSchema = z.object({
   search: z.string().max(200).optional(),
@@ -17,7 +20,7 @@ const listSchema = z.object({
 
 app.get("/", zValidator("query", listSchema), async (c) => {
   const { search, page, pageSize } = c.req.valid("query");
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const where = search ? like(games.title_en, `%${search}%`) : undefined;
 
@@ -48,10 +51,9 @@ app.get("/", zValidator("query", listSchema), async (c) => {
 });
 
 app.get("/:id", async (c) => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id) || id < 1)
-    return c.json({ error: "Not found" }, 404);
-  const db = createDb(c.env.DB);
+  const id = parseIntParam(c.req.param("id"));
+  if (id === null) return c.json({ error: "Not found" }, 404);
+  const db = c.get("db");
 
   const rows = await db
     .select({
@@ -70,10 +72,9 @@ app.get("/:id", async (c) => {
 });
 
 app.get("/:id/igdb", async (c) => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id) || id < 1)
-    return c.json({ error: "Not found" }, 404);
-  const db = createDb(c.env.DB);
+  const id = parseIntParam(c.req.param("id"));
+  if (id === null) return c.json({ error: "Not found" }, 404);
+  const db = c.get("db");
 
   const rows = await db
     .select({ igdb_id: games.igdb_id })
@@ -90,10 +91,9 @@ app.get("/:id/igdb", async (c) => {
 });
 
 app.get("/:id/circana", async (c) => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id) || id < 1)
-    return c.json({ error: "Not found" }, 404);
-  const db = createDb(c.env.DB);
+  const id = parseIntParam(c.req.param("id"));
+  if (id === null) return c.json({ error: "Not found" }, 404);
+  const db = c.get("db");
 
   const entries = await db
     .select({

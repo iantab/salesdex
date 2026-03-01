@@ -52,3 +52,9 @@ export async function invalidateCachePrefix(
           .cursor;
   } while (cursor);
 }
+
+export const CACHE_PREFIXES = {
+  momentum: "cache:/analytics/momentum:",
+  streaks: "cache:/analytics/streaks:",
+  charts: "cache:/circana/charts:",
+} as const;

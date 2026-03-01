@@ -2,16 +2,19 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, gte, lte } from "drizzle-orm";
-import type { CloudflareBindings } from "../types/bindings";
-import { createDb } from "../db/client";
+import type { CloudflareBindings, AppVariables } from "../types/bindings";
 import {
   circana_reports,
   circana_market_totals,
   circana_entries,
   games,
 } from "../db/schema";
+import { parseIntParam } from "../lib/params";
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
+const app = new Hono<{
+  Bindings: CloudflareBindings;
+  Variables: AppVariables;
+}>();
 
 const reportsQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2035).optional(),
@@ -20,7 +23,7 @@ const reportsQuerySchema = z.object({
 
 app.get("/reports", zValidator("query", reportsQuerySchema), async (c) => {
   const { year, period_type } = c.req.valid("query");
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const conditions = [];
   if (year) conditions.push(eq(circana_reports.year, year));
@@ -34,10 +37,9 @@ app.get("/reports", zValidator("query", reportsQuerySchema), async (c) => {
 });
 
 app.get("/reports/:id", async (c) => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id) || id < 1)
-    return c.json({ error: "Not found" }, 404);
-  const db = createDb(c.env.DB);
+  const id = parseIntParam(c.req.param("id"));
+  if (id === null) return c.json({ error: "Not found" }, 404);
+  const db = c.get("db");
 
   const [report, totals] = await Promise.all([
     db.select().from(circana_reports).where(eq(circana_reports.id, id)),
@@ -60,7 +62,7 @@ const chartsQuerySchema = z.object({
 
 app.get("/charts", zValidator("query", chartsQuerySchema), async (c) => {
   const { report_id, chart_type } = c.req.valid("query");
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const rows = await db
     .select({
@@ -94,7 +96,7 @@ const trendsQuerySchema = z.object({
 
 app.get("/trends", zValidator("query", trendsQuerySchema), async (c) => {
   const { game_id, from, to } = c.req.valid("query");
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const conditions = [eq(circana_entries.game_id, game_id)];
   if (from) conditions.push(gte(circana_reports.period_end, from));

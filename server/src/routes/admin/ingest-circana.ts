@@ -1,19 +1,21 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, isNull, inArray, sql } from "drizzle-orm";
-import type { CloudflareBindings } from "../../types/bindings";
-import { createDb } from "../../db/client";
-import { invalidateCachePrefix } from "../../middleware/cache";
+import { eq, isNull, inArray, and, sql } from "drizzle-orm";
+import type { CloudflareBindings, AppVariables } from "../../types/bindings";
+import { invalidateCachePrefix, CACHE_PREFIXES } from "../../middleware/cache";
+import { enrichGames } from "../../services/enrichment";
 import {
   games,
   circana_reports,
   circana_market_totals,
   circana_entries,
 } from "../../db/schema";
-import { searchGame, getGameById } from "../../services/igdb";
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
+const app = new Hono<{
+  Bindings: CloudflareBindings;
+  Variables: AppVariables;
+}>();
 
 const EntrySchema = z.object({
   chart_type: z.enum(["overall", "nintendo", "playstation", "xbox"]),
@@ -62,43 +64,21 @@ const UpdateGameSchema = z.object({
   cover_url: z.string().url().max(2000).optional(),
 });
 
-export async function enrichGames(
+function scheduleEnrichment(
   env: CloudflareBindings,
-  gameIds: number[],
+  executionCtx: ExecutionContext,
+  ids: number[],
 ): Promise<void> {
-  const db = createDb(env.DB);
-  for (const gameId of gameIds) {
-    const rows = await db
-      .select({ title_en: games.title_en, igdb_id: games.igdb_id })
-      .from(games)
-      .where(eq(games.id, gameId))
-      .limit(1);
-    if (rows.length === 0) continue;
-
-    try {
-      const row = rows[0];
-      const result =
-        row.igdb_id != null
-          ? await getGameById(env, row.igdb_id)
-          : await searchGame(env, row.title_en);
-      if (!result) continue;
-
-      const updateSet: Partial<typeof games.$inferInsert> = {
-        igdb_id: result.igdb_id,
-        cover_url: result.cover_url,
-        release_date_us: result.release_date_us,
-      };
-
-      await db.update(games).set(updateSet).where(eq(games.id, gameId));
-    } catch {
-      // Non-fatal: skip this game if IGDB lookup fails
-    }
+  if (env.IGDB_ENRICHMENT_QUEUE) {
+    return env.IGDB_ENRICHMENT_QUEUE.send({ game_ids: ids });
   }
+  executionCtx.waitUntil(enrichGames(env, ids));
+  return Promise.resolve();
 }
 
 app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   const payload = c.req.valid("json");
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const warnings: string[] = [];
   let inserted_count = 0;
@@ -110,12 +90,13 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
       .select({ id: circana_reports.id })
       .from(circana_reports)
       .where(
-        sql`${circana_reports.year} = ${payload.year}
-          AND ${circana_reports.period_type} = ${payload.period_type}
-          AND (
-            (${payload.month} IS NULL AND ${circana_reports.month} IS NULL)
-            OR ${circana_reports.month} = ${payload.month}
-          )`,
+        and(
+          eq(circana_reports.year, payload.year),
+          eq(circana_reports.period_type, payload.period_type),
+          payload.month != null
+            ? eq(circana_reports.month, payload.month)
+            : isNull(circana_reports.month),
+        ),
       )
       .limit(1);
 
@@ -210,18 +191,14 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 
   // 5. Invalidate KV cache — uses prefix scan so parameterized variants are caught
   await Promise.allSettled([
-    invalidateCachePrefix(c.env.KV, "cache:/analytics/momentum:"),
-    invalidateCachePrefix(c.env.KV, "cache:/analytics/streaks:"),
-    invalidateCachePrefix(c.env.KV, "cache:/circana/charts:"),
+    invalidateCachePrefix(c.env.KV, CACHE_PREFIXES.momentum),
+    invalidateCachePrefix(c.env.KV, CACHE_PREFIXES.streaks),
+    invalidateCachePrefix(c.env.KV, CACHE_PREFIXES.charts),
   ]);
 
   // 6. Enrich new games with IGDB metadata — prefer Queue for durability
   if (newGameIds.length > 0) {
-    if (c.env.IGDB_ENRICHMENT_QUEUE) {
-      await c.env.IGDB_ENRICHMENT_QUEUE.send({ game_ids: newGameIds });
-    } else {
-      c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
-    }
+    await scheduleEnrichment(c.env, c.executionCtx, newGameIds);
   }
 
   return c.json({
@@ -234,7 +211,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 });
 
 app.post("/games/enrich", async (c) => {
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
 
   const rows = await db
     .select({ id: games.id })
@@ -248,12 +225,7 @@ app.post("/games/enrich", async (c) => {
   }
 
   const ids = rows.map((r) => r.id);
-
-  if (c.env.IGDB_ENRICHMENT_QUEUE) {
-    await c.env.IGDB_ENRICHMENT_QUEUE.send({ game_ids: ids });
-  } else {
-    c.executionCtx.waitUntil(enrichGames(c.env, ids));
-  }
+  await scheduleEnrichment(c.env, c.executionCtx, ids);
 
   return c.json({ data: { queued: ids.length } });
 });
@@ -266,7 +238,7 @@ app.post("/games/:id", zValidator("json", UpdateGameSchema), async (c) => {
     return c.json({ error: "No valid fields to update" }, 400);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.get("db");
   const rows = await db
     .update(games)
     .set(update)
