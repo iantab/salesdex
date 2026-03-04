@@ -19,6 +19,44 @@
   min-width: 0;
 }
 
+.app-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.region-toggle {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.region-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.region-btn:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-2);
+}
+
+.region-btn--active {
+  background-color: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
 .app-header h1 {
   font-size: 1.25rem;
   font-weight: 600;

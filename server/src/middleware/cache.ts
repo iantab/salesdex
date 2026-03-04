@@ -57,4 +57,6 @@ export const CACHE_PREFIXES = {
   momentum: "cache:/analytics/momentum:",
   streaks: "cache:/analytics/streaks:",
   charts: "cache:/circana/charts:",
+  famitsuReports: "cache:/famitsu/reports:",
+  famitsuSoftware: "cache:/famitsu/software:",
 } as const;

@@ -104,3 +104,74 @@ export const circana_hardware = sqliteTable("circana_hardware", {
   unit_rank: integer("unit_rank"),
   yoy_change_pct: real("yoy_change_pct"),
 });
+
+export const famitsu_reports = sqliteTable(
+  "famitsu_reports",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    year: integer("year").notNull(),
+    week_of_year: integer("week_of_year").notNull(),
+    period_start: text("period_start").notNull(),
+    period_end: text("period_end").notNull(),
+    report_url: text("report_url"),
+    scraped_at: text("scraped_at"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => ({
+    uniquePeriod: uniqueIndex("unique_famitsu_period").on(
+      t.period_start,
+      t.period_end,
+    ),
+  }),
+);
+
+export const famitsu_software_entries = sqliteTable(
+  "famitsu_software_entries",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    report_id: integer("report_id")
+      .notNull()
+      .references(() => famitsu_reports.id),
+    game_id: integer("game_id")
+      .notNull()
+      .references(() => games.id),
+    rank: integer("rank").notNull(),
+    platform: text("platform").notNull(),
+    weekly_sales: integer("weekly_sales"),
+    lifetime_sales: integer("lifetime_sales"),
+    is_new: integer("is_new", { mode: "boolean" }).notNull().default(false),
+    release_date: text("release_date"),
+  },
+  (t) => ({
+    uniqueEntry: uniqueIndex("unique_famitsu_software_entry").on(
+      t.report_id,
+      t.rank,
+      t.platform,
+    ),
+    gameIdIdx: index("famitsu_software_game_id_idx").on(t.game_id),
+    reportIdIdx: index("famitsu_software_report_id_idx").on(t.report_id),
+  }),
+);
+
+export const famitsu_hardware_entries = sqliteTable(
+  "famitsu_hardware_entries",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    report_id: integer("report_id")
+      .notNull()
+      .references(() => famitsu_reports.id),
+    rank: integer("rank").notNull(),
+    platform: text("platform").notNull(),
+    weekly_sales: integer("weekly_sales"),
+    lifetime_sales: integer("lifetime_sales"),
+  },
+  (t) => ({
+    uniqueEntry: uniqueIndex("unique_famitsu_hardware_entry").on(
+      t.report_id,
+      t.rank,
+    ),
+    reportIdIdx: index("famitsu_hardware_report_id_idx").on(t.report_id),
+  }),
+);

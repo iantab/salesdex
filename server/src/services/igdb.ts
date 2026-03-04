@@ -229,6 +229,7 @@ export async function searchGame(
   }
 
   // 3. Fallback: if there's a subtitle, search just the main title part
+  let pickQuery = query;
   if (
     results.length === 0 &&
     (searchTitle.includes(" - ") || searchTitle.includes(": "))
@@ -239,10 +240,14 @@ export async function searchGame(
     if (results.length === 0) {
       results = await doFuzzySearch(shortTitle);
     }
+
+    if (results.length > 0) {
+      pickQuery = cleanTitle.split(/ - |: /)[0].trim();
+    }
   }
 
   if (results.length === 0) return null;
-  const best = pickBest(results, query);
+  const best = pickBest(results, pickQuery);
   if (!best) return null;
   return parseIGDBGame(best);
 }

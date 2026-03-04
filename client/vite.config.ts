@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       "/games": "http://localhost:8787",
       "/circana": "http://localhost:8787",
+      "/famitsu": "http://localhost:8787",
       "/admin": "http://localhost:8787",
     },
   },

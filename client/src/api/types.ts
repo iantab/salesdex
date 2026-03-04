@@ -77,3 +77,48 @@ export interface TrendEntry {
   rank: number;
   last_month_rank: number | null;
 }
+
+export interface FamitsuReport {
+  id: number;
+  year: number;
+  week_of_year: number;
+  period_start: string;
+  period_end: string;
+  report_url: string | null;
+  scraped_at: string | null;
+  created_at: string;
+}
+
+export interface FamitsuSoftwareEntry {
+  id: number;
+  rank: number;
+  platform: string;
+  weekly_sales: number | null;
+  lifetime_sales: number | null;
+  is_new: boolean | null;
+  release_date: string | null;
+  game_id: number;
+  title_en: string;
+  cover_url: string | null;
+}
+
+export interface FamitsuHardwareEntry {
+  id: number;
+  report_id: number;
+  rank: number;
+  platform: string;
+  weekly_sales: number | null;
+  lifetime_sales: number | null;
+}
+
+export interface FamitsuTrendEntry {
+  report_id: number;
+  year: number;
+  week_of_year: number;
+  period_start: string;
+  period_end: string;
+  rank: number;
+  platform: string;
+  weekly_sales: number | null;
+  lifetime_sales: number | null;
+}

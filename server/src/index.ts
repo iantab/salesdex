@@ -9,7 +9,9 @@ import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { enrichGames } from "./services/enrichment";
 import gamesRoutes from "./routes/games";
 import circanaRoutes from "./routes/circana";
+import famitsuRoutes from "./routes/famitsu";
 import adminRoutes from "./routes/admin/ingest-circana";
+import adminFamitsuRoutes from "./routes/admin/ingest-famitsu";
 
 const app = new Hono<{
   Bindings: CloudflareBindings;
@@ -36,17 +38,20 @@ app.use("*", async (c, next) => {
 // Rate limit all public routes (no-op if RATE_LIMITER binding is not configured)
 app.use("/games/*", rateLimitMiddleware);
 app.use("/circana/*", rateLimitMiddleware);
+app.use("/famitsu/*", rateLimitMiddleware);
 
 app.get("/", (c) => c.json({ status: "ok" }));
 
 app.route("/games", gamesRoutes);
 app.route("/circana", circanaRoutes);
+app.route("/famitsu", famitsuRoutes);
 
 // Admin routes — protected by rate limiting and auth middleware
-// POST /admin/ingest/circana, POST /admin/games/:id, POST /admin/games/enrich, GET /admin/queue
+// POST /admin/ingest/circana, POST /admin/ingest/famitsu, POST /admin/games/:id, POST /admin/games/enrich
 app.use("/admin/*", rateLimitMiddleware);
 app.use("/admin/*", authMiddleware);
 app.route("/admin", adminRoutes);
+app.route("/admin", adminFamitsuRoutes);
 
 export default {
   fetch: app.fetch,
