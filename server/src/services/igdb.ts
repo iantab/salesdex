@@ -199,9 +199,9 @@ export async function searchGame(
   const token = await getAccessToken(env);
 
   const cleanTitle = title.replace(/[®™©]/g, "").trim();
-  // Sanitize separators for the IGDB query — /&+ break IGDB's query parser
+  // Sanitize separators for the IGDB query — /&+ break IGDB's query parser; em/en dashes act as subtitle separators
   const searchTitle = cleanTitle
-    .replace(/[/&+]/g, " ")
+    .replace(/[/&+\u2013\u2014]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -246,7 +246,7 @@ export async function searchGame(
     }
 
     if (results.length > 0) {
-      pickQuery = cleanTitle.split(/ - |: /)[0].trim();
+      pickQuery = cleanTitle.split(/ - |: |\s[\u2013\u2014]\s/)[0].trim();
     }
   }
 
