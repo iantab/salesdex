@@ -17,24 +17,19 @@
     },
   ],
 
-  // ── Cloudflare Queue for async IGDB enrichment ──────────────────────────
-  // Setup:
-  //   1. wrangler queues create igdb-enrichment
-  //   2. Uncomment the block below
-  //
-  // "queues": {
-  //   "producers": [
-  //     { "binding": "IGDB_ENRICHMENT_QUEUE", "queue": "igdb-enrichment" }
-  //   ],
-  //   "consumers": [
-  //     {
-  //       "queue": "igdb-enrichment",
-  //       "max_batch_size": 10,
-  //       "max_retries": 3,
-  //       "dead_letter_queue": "igdb-enrichment-dlq"
-  //     }
-  //   ]
-  // },
+  "queues": {
+    "producers": [
+      { "binding": "IGDB_ENRICHMENT_QUEUE", "queue": "igdb-enrichment" }
+    ],
+    "consumers": [
+      {
+        "queue": "igdb-enrichment",
+        "max_batch_size": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "igdb-enrichment-dlq"
+      }
+    ]
+  },
 
   // ── Rate Limiting API ────────────────────────────────────────────────────
   // Setup: uncomment and adjust limit/period as needed.

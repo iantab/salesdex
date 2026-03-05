@@ -23,7 +23,18 @@ export async function enrichGames(
         row.igdb_id != null
           ? await getGameById(env, row.igdb_id)
           : await searchGame(env, row.title_en);
-      if (!result) continue;
+      if (!result) {
+        await db
+          .insert(game_details)
+          .values({
+            game_id: gameId,
+            release_date_us: null,
+            publisher: null,
+            developer: null,
+          })
+          .onConflictDoNothing();
+        continue;
+      }
 
       await db
         .update(games)
