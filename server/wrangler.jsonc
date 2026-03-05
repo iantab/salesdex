@@ -6,16 +6,16 @@
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "bfee823e97094d939af8408c3b5e7cf3"
-    }
+      "id": "bfee823e97094d939af8408c3b5e7cf3",
+    },
   ],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "game-sales-tracker",
-      "database_id": "c030a168-419f-4f2b-a6a8-ed4710cbf6e5"
-    }
-  ]
+      "database_id": "c030a168-419f-4f2b-a6a8-ed4710cbf6e5",
+    },
+  ],
 
   // ── Cloudflare Queue for async IGDB enrichment ──────────────────────────
   // Setup:

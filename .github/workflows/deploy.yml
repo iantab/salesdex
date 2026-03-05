@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-    paths: ['client/**', '.github/workflows/deploy.yml']
+    paths: ["client/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 permissions:

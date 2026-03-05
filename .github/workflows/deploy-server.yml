@@ -3,7 +3,7 @@ name: Deploy Server to Cloudflare Workers
 on:
   push:
     branches: [master]
-    paths: ['server/**', '.github/workflows/deploy-server.yml']
+    paths: ["server/**", ".github/workflows/deploy-server.yml"]
   workflow_dispatch:
 
 jobs:
