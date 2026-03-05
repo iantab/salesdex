@@ -9,6 +9,7 @@
     "db:studio:prod": "bunx drizzle-kit studio"
   },
   "dependencies": {
+    "@game-sales-tracker/shared": "workspace:*",
     "@hono/zod-validator": "^0.7.6",
     "@types/node": "^25.3.2",
     "drizzle-orm": "^0.45.1",
