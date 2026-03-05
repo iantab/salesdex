@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { CloudflareBindings } from "../types/bindings";
 import { createDb } from "../db/client";
-import { games } from "../db/schema";
+import { games, game_details } from "../db/schema";
 import { searchGame, getGameById } from "./igdb";
 
 export async function enrichGames(
@@ -30,9 +30,26 @@ export async function enrichGames(
         .set({
           igdb_id: result.igdb_id,
           cover_url: result.cover_url,
-          release_date_us: result.release_date_us,
         })
         .where(eq(games.id, gameId));
+
+      await db
+        .insert(game_details)
+        .values({
+          game_id: gameId,
+          release_date_us: result.release_date_us,
+          publisher: result.publisher,
+          developer: result.developer,
+        })
+        .onConflictDoUpdate({
+          target: game_details.game_id,
+          set: {
+            release_date_us: result.release_date_us,
+            publisher: result.publisher,
+            developer: result.developer,
+            updated_at: sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+          },
+        });
     } catch {
       // Non-fatal: skip this game if IGDB lookup fails
     }

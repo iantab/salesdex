@@ -48,23 +48,13 @@ export interface GameDetail {
   release_date_us: string | null;
   cover_url: string | null;
   created_at: string;
-}
-
-export interface IgdbDetail {
-  igdb_id: number;
-  slug: string | null;
+  publisher: string | null;
   developer: string | null;
-  franchise: string | null;
-  title_jp: string | null;
-  release_date_us: string | null;
-  release_date_jp: string | null;
-  cover_url: string | null;
 }
 
 export interface GameSearchResult {
   id: number;
   title_en: string;
-  release_date_us: string | null;
   cover_url: string | null;
 }
 
@@ -96,7 +86,6 @@ export interface FamitsuSoftwareEntry {
   weekly_sales: number | null;
   lifetime_sales: number | null;
   is_new: boolean | null;
-  release_date: string | null;
   game_id: number;
   title_en: string;
   cover_url: string | null;

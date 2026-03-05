@@ -14,7 +14,6 @@ export const games = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     title_en: text("title_en").notNull(),
     igdb_id: integer("igdb_id"),
-    release_date_us: text("release_date_us"),
     cover_url: text("cover_url"),
     created_at: text("created_at")
       .notNull()
@@ -23,6 +22,22 @@ export const games = sqliteTable(
   (t) => ({
     titleEnIdx: index("games_title_en_idx").on(t.title_en),
   }),
+);
+
+export const game_details = sqliteTable("game_details", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  game_id: integer("game_id")
+    .notNull()
+    .references(() => games.id),
+  release_date_us: text("release_date_us"),
+  publisher: text("publisher"),
+  developer: text("developer"),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
+export const gameDetailsGameIdIdx = uniqueIndex("game_details_game_id_idx").on(
+  game_details.game_id,
 );
 
 export const circana_reports = sqliteTable(
@@ -142,7 +157,6 @@ export const famitsu_software_entries = sqliteTable(
     weekly_sales: integer("weekly_sales"),
     lifetime_sales: integer("lifetime_sales"),
     is_new: integer("is_new", { mode: "boolean" }).notNull().default(false),
-    release_date: text("release_date"),
   },
   (t) => ({
     uniqueEntry: uniqueIndex("unique_famitsu_software_entry").on(

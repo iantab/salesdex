@@ -3,8 +3,12 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, like, sql } from "drizzle-orm";
 import type { CloudflareBindings, AppVariables } from "../types/bindings";
-import { games, circana_entries, circana_reports } from "../db/schema";
-import { getGameById } from "../services/igdb";
+import {
+  games,
+  game_details,
+  circana_entries,
+  circana_reports,
+} from "../db/schema";
 import { parseIntParam } from "../lib/params";
 
 const app = new Hono<{
@@ -33,7 +37,6 @@ app.get("/", zValidator("query", listSchema), async (c) => {
       .select({
         id: games.id,
         title_en: games.title_en,
-        release_date_us: games.release_date_us,
         cover_url: games.cover_url,
       })
       .from(games)
@@ -60,34 +63,18 @@ app.get("/:id", async (c) => {
       id: games.id,
       title_en: games.title_en,
       igdb_id: games.igdb_id,
-      release_date_us: games.release_date_us,
       cover_url: games.cover_url,
       created_at: games.created_at,
+      release_date_us: game_details.release_date_us,
+      publisher: game_details.publisher,
+      developer: game_details.developer,
     })
     .from(games)
+    .leftJoin(game_details, eq(game_details.game_id, games.id))
     .where(eq(games.id, id));
 
   if (rows.length === 0) return c.json({ error: "Not found" }, 404);
   return c.json({ data: rows[0] });
-});
-
-app.get("/:id/igdb", async (c) => {
-  const id = parseIntParam(c.req.param("id"));
-  if (id === null) return c.json({ error: "Not found" }, 404);
-  const db = c.get("db");
-
-  const rows = await db
-    .select({ igdb_id: games.igdb_id })
-    .from(games)
-    .where(eq(games.id, id));
-
-  if (rows.length === 0 || rows[0].igdb_id == null)
-    return c.json({ error: "No IGDB ID" }, 404);
-
-  const igdbResult = await getGameById(c.env, rows[0].igdb_id);
-  if (!igdbResult) return c.json({ error: "Not found on IGDB" }, 404);
-
-  return c.json({ data: igdbResult });
 });
 
 app.get("/:id/circana", async (c) => {

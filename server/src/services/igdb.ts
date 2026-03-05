@@ -34,6 +34,7 @@ export interface IGDBResult {
   cover_url: string | null;
   release_date_us: string | null;
   release_date_jp: string | null;
+  publisher: string | null;
   developer: string | null;
   franchise: string | null;
   title_jp: string | null;
@@ -108,6 +109,8 @@ function parseIGDBGame(game: IGDBRawGame): IGDBResult {
 
   const devEntry = game.involved_companies?.find((ic) => ic.developer === true);
   const developer = devEntry?.company?.name ?? null;
+  const pubEntry = game.involved_companies?.find((ic) => ic.developer !== true);
+  const publisher = pubEntry?.company?.name ?? null;
 
   const franchise = game.franchises?.[0]?.name ?? null;
 
@@ -122,6 +125,7 @@ function parseIGDBGame(game: IGDBRawGame): IGDBResult {
     cover_url,
     release_date_us,
     release_date_jp,
+    publisher,
     developer,
     franchise,
     title_jp,

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchGame, fetchGameIgdb } from "../api/games";
+import { fetchGame } from "../api/games";
 import { fetchTrends } from "../api/circana";
 import { Spinner } from "./Spinner";
 import { RankHistoryChart } from "./RankHistoryChart";
@@ -26,13 +26,6 @@ export function GameModal({ gameId, onClose }: Props) {
     queryFn: () => fetchGame(gameId),
   });
 
-  const igdbQuery = useQuery({
-    queryKey: ["game-igdb", gameId],
-    queryFn: () => fetchGameIgdb(gameId),
-    enabled: query.data?.igdb_id != null,
-    retry: false,
-  });
-
   const trendsQuery = useQuery({
     queryKey: ["game-trends", gameId],
     queryFn: () => fetchTrends(gameId),
@@ -47,19 +40,13 @@ export function GameModal({ gameId, onClose }: Props) {
   }
 
   const game = query.data;
-  const igdb = igdbQuery.data;
 
-  const igdbUrl = igdb?.slug
-    ? `https://www.igdb.com/games/${igdb.slug}`
-    : game?.igdb_id != null
+  const igdbUrl =
+    game?.igdb_id != null
       ? `https://www.igdb.com/search?q=${encodeURIComponent(game.title_en)}`
       : null;
 
   const releaseDate = formatDate(game?.release_date_us);
-  const releaseDateJp = formatDate(igdb?.release_date_jp);
-
-  const showJpTitle = igdb?.title_jp && igdb.title_jp !== game?.title_en;
-  const showJpDate = releaseDateJp && releaseDateJp !== releaseDate;
 
   return (
     <div
@@ -99,38 +86,10 @@ export function GameModal({ gameId, onClose }: Props) {
                 <p className="modal__release">Released {releaseDate}</p>
               )}
 
-              {igdbQuery.isPending && game.igdb_id != null && (
-                <div className="modal__igdb-loading">
-                  <Spinner />
-                </div>
-              )}
-
-              {igdb && (
+              {game.developer && (
                 <dl className="modal__details">
-                  {igdb.developer && (
-                    <>
-                      <dt>Developer</dt>
-                      <dd>{igdb.developer}</dd>
-                    </>
-                  )}
-                  {igdb.franchise && (
-                    <>
-                      <dt>Franchise</dt>
-                      <dd>{igdb.franchise}</dd>
-                    </>
-                  )}
-                  {showJpTitle && (
-                    <>
-                      <dt>JP Title</dt>
-                      <dd>{igdb.title_jp}</dd>
-                    </>
-                  )}
-                  {showJpDate && (
-                    <>
-                      <dt>JP Release</dt>
-                      <dd>{releaseDateJp}</dd>
-                    </>
-                  )}
+                  <dt>Developer</dt>
+                  <dd>{game.developer}</dd>
                 </dl>
               )}
 

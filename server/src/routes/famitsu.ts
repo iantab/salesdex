@@ -81,7 +81,6 @@ app.get(
         weekly_sales: famitsu_software_entries.weekly_sales,
         lifetime_sales: famitsu_software_entries.lifetime_sales,
         is_new: famitsu_software_entries.is_new,
-        release_date: famitsu_software_entries.release_date,
         game_id: games.id,
         title_en: games.title_en,
         cover_url: games.cover_url,

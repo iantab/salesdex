@@ -23,14 +23,9 @@ const SoftwareEntrySchema = z.object({
   weekly_sales: z.number().int().nonnegative().nullable().optional(),
   lifetime_sales: z.number().int().nonnegative().nullable().optional(),
   is_new: z.boolean().optional(),
-  release_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
-  game: z.object({
-    title_en: z.string().min(1).max(500),
-  }),
+  title: z.string().min(1).max(500),
+  release_date: z.string().optional(),
+  publisher: z.string().optional(),
 });
 
 const HardwareEntrySchema = z.object({
@@ -99,9 +94,7 @@ app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
     }
 
     // 3. Batch-resolve games by title (software entries only)
-    const uniqueTitles = [
-      ...new Set(payload.software.map((e) => e.game.title_en)),
-    ];
+    const uniqueTitles = [...new Set(payload.software.map((e) => e.title))];
 
     const existingGames = await db
       .select({ id: games.id, title_en: games.title_en })
@@ -127,13 +120,12 @@ app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
     // 4. Upsert famitsu_software_entries in chunks of 10 (8 params/row → 80/batch)
     const softwareValues = payload.software.map((entry) => ({
       report_id: reportId,
-      game_id: titleToGameId.get(entry.game.title_en)!,
+      game_id: titleToGameId.get(entry.title)!,
       rank: entry.rank,
       platform: entry.platform,
       weekly_sales: entry.weekly_sales ?? null,
       lifetime_sales: entry.lifetime_sales ?? null,
       is_new: entry.is_new ?? false,
-      release_date: entry.release_date ?? null,
     }));
 
     const chunkSize = 10;
@@ -153,7 +145,6 @@ app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
             weekly_sales: sql`excluded.weekly_sales`,
             lifetime_sales: sql`excluded.lifetime_sales`,
             is_new: sql`excluded.is_new`,
-            release_date: sql`excluded.release_date`,
           },
         });
     }
