@@ -65,9 +65,11 @@ export function FamitsuChartView({
     if (softwareQuery.isPending) {
       return (
         <div className="famitsu-chart-view">
-          {Array.from({ length: 10 }, (_, i) => (
-            <SkeletonRow key={i} />
-          ))}
+          <div className="famitsu-chart-view__list">
+            {Array.from({ length: 10 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
         </div>
       );
     }
@@ -82,13 +84,18 @@ export function FamitsuChartView({
             No software data for this report.
           </p>
         ) : (
-          entries.map((entry) => (
-            <FamitsuGameRow
-              key={entry.id}
-              entry={entry}
-              onClick={() => onGameClick(entry.game_id)}
-            />
-          ))
+          <div className="famitsu-chart-view__list">
+            <div className="famitsu-chart-view__list-header">
+              <span>Weekly Sales</span>
+            </div>
+            {entries.map((entry) => (
+              <FamitsuGameRow
+                key={entry.id}
+                entry={entry}
+                onClick={() => onGameClick(entry.game_id)}
+              />
+            ))}
+          </div>
         )}
       </div>
     );
@@ -115,30 +122,32 @@ export function FamitsuChartView({
           No hardware data for this report.
         </p>
       ) : (
-        <table className="famitsu-hw-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Platform</th>
-              <th>Weekly</th>
-              <th>Lifetime</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hwEntries.map((entry) => (
-              <tr key={entry.id}>
-                <td className="famitsu-hw-table__rank">{entry.rank}</td>
-                <td>{entry.platform}</td>
-                <td className="famitsu-hw-table__sales">
-                  {formatSales(entry.weekly_sales)}
-                </td>
-                <td className="famitsu-hw-table__sales">
-                  {formatSales(entry.lifetime_sales)}
-                </td>
+        <div className="famitsu-chart-view__list">
+          <table className="famitsu-hw-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Platform</th>
+                <th>Weekly</th>
+                <th>Lifetime</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {hwEntries.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="famitsu-hw-table__rank">{entry.rank}</td>
+                  <td>{entry.platform}</td>
+                  <td className="famitsu-hw-table__sales">
+                    {formatSales(entry.weekly_sales)}
+                  </td>
+                  <td className="famitsu-hw-table__sales">
+                    {formatSales(entry.lifetime_sales)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

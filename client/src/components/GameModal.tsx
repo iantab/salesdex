@@ -86,10 +86,20 @@ export function GameModal({ gameId, onClose }: Props) {
                 <p className="modal__release">Released {releaseDate}</p>
               )}
 
-              {game.developer && (
+              {(game.publisher || game.developer) && (
                 <dl className="modal__details">
-                  <dt>Developer</dt>
-                  <dd>{game.developer}</dd>
+                  {game.publisher && (
+                    <>
+                      <dt>Publisher</dt>
+                      <dd>{game.publisher}</dd>
+                    </>
+                  )}
+                  {game.developer && (
+                    <>
+                      <dt>Developer</dt>
+                      <dd>{game.developer}</dd>
+                    </>
+                  )}
                 </dl>
               )}
 
