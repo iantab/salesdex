@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { ChartType } from "./api/types";
-import { fetchReports } from "./api/circana";
-import { fetchFamitsuReports } from "./api/famitsu";
+import { useState } from "react";
+import { useCircanaState } from "./hooks/useCircanaState";
+import { useFamitsuState } from "./hooks/useFamitsuState";
+import { monthName } from "./utils/date";
 import { ReportSelector } from "./components/ReportSelector";
 import { ChartView } from "./components/ChartView";
 import { FamitsuReportSelector } from "./components/FamitsuReportSelector";
@@ -13,117 +12,20 @@ import { Spinner } from "./components/Spinner";
 import { ErrorMessage } from "./components/ErrorMessage";
 import "./App.css";
 
-function monthName(month: number) {
-  return new Date(2000, month - 1).toLocaleString("en-US", { month: "long" });
-}
-
 export default function App() {
   const [region, setRegion] = useState<"usa" | "japan">("usa");
-
-  // USA / Circana state
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [chartType, setChartType] = useState<ChartType>("overall");
-
-  // Japan / Famitsu state
-  const [famitsuSelectedYear, setFamitsuSelectedYear] = useState<number | null>(
-    null,
-  );
-  const [famitsuSelectedWeek, setFamitsuSelectedWeek] = useState<number | null>(
-    null,
-  );
-  const [famitsuSection, setFamitsuSection] = useState<"software" | "hardware">(
-    "software",
-  );
-  const [famitsuActivePlatform, setFamitsuActivePlatform] = useState<
-    string | null
-  >(null);
-  const [famitsuAvailablePlatforms, setFamitsuAvailablePlatforms] = useState<
-    string[]
-  >([]);
   const [famitsuSelectedGameId, setFamitsuSelectedGameId] = useState<
     number | null
   >(null);
 
-  // USA queries
-  const reportsQuery = useQuery({
-    queryKey: ["reports"],
-    queryFn: fetchReports,
-  });
-
-  // Japan queries
-  const famitsuReportsQuery = useQuery({
-    queryKey: ["famitsu-reports"],
-    queryFn: () => fetchFamitsuReports(),
-    enabled: region === "japan",
-  });
-
-  // Auto-select most recent Circana report on load
-  useEffect(() => {
-    if (!reportsQuery.data || selectedYear !== null) return;
-    const sorted = [...reportsQuery.data]
-      .filter((r) => r.month != null)
-      .sort((a, b) => b.year - a.year || (b.month ?? 0) - (a.month ?? 0));
-    if (sorted.length > 0) {
-      setSelectedYear(sorted[0].year);
-      setSelectedMonth(sorted[0].month);
-    }
-  }, [reportsQuery.data, selectedYear]);
-
-  // Auto-select most recent Famitsu report on load
-  useEffect(() => {
-    if (!famitsuReportsQuery.data || famitsuSelectedWeek !== null) return;
-    const sorted = [...famitsuReportsQuery.data].sort(
-      (a, b) => b.year - a.year || b.week_of_year - a.week_of_year,
-    );
-    if (sorted.length > 0) {
-      setFamitsuSelectedYear(sorted[0].year);
-      setFamitsuSelectedWeek(sorted[0].week_of_year);
-    }
-  }, [famitsuReportsQuery.data, famitsuSelectedWeek]);
-
-  // When Circana year changes, auto-select most recent month for that year
-  const handleYearChange = (year: number) => {
-    setSelectedYear(year);
-    const monthsForYear = (reportsQuery.data ?? [])
-      .filter((r) => r.year === year && r.month != null)
-      .map((r) => r.month as number)
-      .sort((a, b) => b - a);
-    setSelectedMonth(monthsForYear[0] ?? null);
-  };
-
-  // When Famitsu year changes, auto-select most recent week for that year
-  const handleFamitsuYearChange = (year: number) => {
-    setFamitsuSelectedYear(year);
-    setFamitsuActivePlatform(null);
-    const weeksForYear = (famitsuReportsQuery.data ?? [])
-      .filter((r) => r.year === year)
-      .sort((a, b) => b.week_of_year - a.week_of_year);
-    setFamitsuSelectedWeek(weeksForYear[0]?.week_of_year ?? null);
-  };
-
-  const handleFamitsuWeekChange = (week: number) => {
-    setFamitsuSelectedWeek(week);
-    setFamitsuActivePlatform(null);
-  };
-
-  const selectedReportId =
-    reportsQuery.data?.find(
-      (r) => r.year === selectedYear && r.month === selectedMonth,
-    )?.id ?? null;
-
-  const famitsuSelectedReportId =
-    famitsuReportsQuery.data?.find(
-      (r) =>
-        r.year === famitsuSelectedYear &&
-        r.week_of_year === famitsuSelectedWeek,
-    )?.id ?? null;
+  const circana = useCircanaState();
+  const famitsu = useFamitsuState(region === "japan");
 
   const heading =
-    selectedYear && selectedMonth
-      ? `${monthName(selectedMonth)} ${selectedYear}`
-      : selectedYear
-        ? String(selectedYear)
+    circana.selectedYear && circana.selectedMonth
+      ? `${monthName(circana.selectedMonth)} ${circana.selectedYear}`
+      : circana.selectedYear
+        ? String(circana.selectedYear)
         : "Circana Sales Charts";
 
   return (
@@ -161,20 +63,20 @@ export default function App() {
       <main className="app-main">
         {region === "usa" && (
           <>
-            {reportsQuery.isPending && <Spinner />}
-            {reportsQuery.error && (
-              <ErrorMessage message={(reportsQuery.error as Error).message} />
+            {circana.reportsQuery.isPending && <Spinner />}
+            {circana.reportsQuery.error && (
+              <ErrorMessage error={circana.reportsQuery.error} />
             )}
-            {reportsQuery.data && (
+            {circana.reportsQuery.data && (
               <>
                 <ReportSelector
-                  reports={reportsQuery.data}
-                  selectedYear={selectedYear}
-                  selectedMonth={selectedMonth}
-                  chartType={chartType}
-                  onYearChange={handleYearChange}
-                  onMonthChange={setSelectedMonth}
-                  onChartTypeChange={setChartType}
+                  reports={circana.reportsQuery.data}
+                  selectedYear={circana.selectedYear}
+                  selectedMonth={circana.selectedMonth}
+                  chartType={circana.chartType}
+                  onYearChange={circana.handleYearChange}
+                  onMonthChange={circana.handleMonthChange}
+                  onChartTypeChange={circana.handleChartTypeChange}
                 />
                 <h2
                   style={{
@@ -185,10 +87,10 @@ export default function App() {
                 >
                   {heading}
                 </h2>
-                {selectedReportId !== null ? (
+                {circana.selectedReportId !== null ? (
                   <ChartView
-                    reportId={selectedReportId}
-                    chartType={chartType}
+                    reportId={circana.selectedReportId}
+                    chartType={circana.chartType}
                   />
                 ) : (
                   <p
@@ -208,33 +110,31 @@ export default function App() {
 
         {region === "japan" && (
           <>
-            {famitsuReportsQuery.isPending && <Spinner />}
-            {famitsuReportsQuery.error && (
-              <ErrorMessage
-                message={(famitsuReportsQuery.error as Error).message}
-              />
+            {famitsu.reportsQuery.isPending && <Spinner />}
+            {famitsu.reportsQuery.error && (
+              <ErrorMessage error={famitsu.reportsQuery.error} />
             )}
-            {famitsuReportsQuery.data && (
+            {famitsu.reportsQuery.data && (
               <>
                 <FamitsuReportSelector
-                  reports={famitsuReportsQuery.data}
-                  selectedYear={famitsuSelectedYear}
-                  selectedWeek={famitsuSelectedWeek}
-                  section={famitsuSection}
-                  activePlatform={famitsuActivePlatform}
-                  availablePlatforms={famitsuAvailablePlatforms}
-                  onYearChange={handleFamitsuYearChange}
-                  onWeekChange={handleFamitsuWeekChange}
-                  onSectionChange={setFamitsuSection}
-                  onPlatformChange={setFamitsuActivePlatform}
+                  reports={famitsu.reportsQuery.data}
+                  selectedYear={famitsu.selectedYear}
+                  selectedWeek={famitsu.selectedWeek}
+                  section={famitsu.section}
+                  activePlatform={famitsu.activePlatform}
+                  availablePlatforms={famitsu.availablePlatforms}
+                  onYearChange={famitsu.handleYearChange}
+                  onWeekChange={famitsu.handleWeekChange}
+                  onSectionChange={famitsu.handleSectionChange}
+                  onPlatformChange={famitsu.handlePlatformChange}
                 />
-                {famitsuSelectedReportId !== null ? (
+                {famitsu.selectedReportId !== null ? (
                   <FamitsuChartView
-                    reportId={famitsuSelectedReportId}
-                    section={famitsuSection}
-                    activePlatform={famitsuActivePlatform}
+                    reportId={famitsu.selectedReportId}
+                    section={famitsu.section}
+                    activePlatform={famitsu.activePlatform}
                     onGameClick={setFamitsuSelectedGameId}
-                    onPlatformsLoaded={setFamitsuAvailablePlatforms}
+                    onPlatformsLoaded={famitsu.handlePlatformsLoaded}
                   />
                 ) : (
                   <p
@@ -257,6 +157,7 @@ export default function App() {
         <GameModal
           gameId={famitsuSelectedGameId}
           onClose={() => setFamitsuSelectedGameId(null)}
+          source="famitsu"
         />
       )}
     </div>

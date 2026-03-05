@@ -1,4 +1,5 @@
 import type { CircanaReport, ChartType } from "../api/types";
+import { monthAbbr } from "../utils/date";
 import "./ReportSelector.css";
 
 const CHART_TYPES: { value: ChartType; label: string }[] = [
@@ -7,10 +8,6 @@ const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "playstation", label: "PlayStation" },
   { value: "xbox", label: "Xbox" },
 ];
-
-function monthAbbr(month: number) {
-  return new Date(2000, month - 1).toLocaleString("en-US", { month: "short" });
-}
 
 interface Props {
   reports: CircanaReport[];

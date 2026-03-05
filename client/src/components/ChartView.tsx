@@ -41,7 +41,7 @@ export function ChartView({ reportId, chartType }: Props) {
     );
   }
 
-  if (error) return <ErrorMessage message={(error as Error).message} />;
+  if (error) return <ErrorMessage error={error} />;
 
   const entries = chartsQuery.data ?? [];
   const detail = detailQuery.data;

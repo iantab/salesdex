@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchGame } from "../api/games";
 import { fetchTrends } from "../api/circana";
+import { fetchFamitsuTrends } from "../api/famitsu";
+import { buildCircanaChartData, buildFamitsuChartData } from "../api/chartData";
+import { formatDate } from "../utils/date";
 import { Spinner } from "./Spinner";
 import { RankHistoryChart } from "./RankHistoryChart";
 import "./GameModal.css";
@@ -9,27 +12,54 @@ import * as React from "react";
 interface Props {
   gameId: number;
   onClose: () => void;
+  source?: "circana" | "famitsu";
 }
 
-function formatDate(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-export function GameModal({ gameId, onClose }: Props) {
+export function GameModal({ gameId, onClose, source = "circana" }: Props) {
   const query = useQuery({
     queryKey: ["game", gameId],
     queryFn: () => fetchGame(gameId),
   });
 
-  const trendsQuery = useQuery({
-    queryKey: ["game-trends", gameId],
+  // Circana trend query — only active when NOT in famitsu mode
+  const circanaQuery = useQuery({
+    queryKey: ["game-trends", "circana", gameId],
     queryFn: () => fetchTrends(gameId),
+    enabled: source !== "famitsu",
   });
+
+  // Famitsu trend query — only active when in famitsu mode
+  const famitsuTrendsQuery = useQuery({
+    queryKey: ["game-trends", "famitsu", gameId],
+    queryFn: () => fetchFamitsuTrends(gameId),
+    enabled: source === "famitsu",
+  });
+
+  const trendsIsPending =
+    source === "famitsu"
+      ? famitsuTrendsQuery.isPending
+      : circanaQuery.isPending;
+  const trendsIsError =
+    source === "famitsu" ? famitsuTrendsQuery.isError : circanaQuery.isError;
+
+  // Build unified chart data based on source
+  const chartContent = React.useMemo(() => {
+    if (
+      source === "famitsu" &&
+      famitsuTrendsQuery.data &&
+      famitsuTrendsQuery.data.length > 0
+    ) {
+      return buildFamitsuChartData(famitsuTrendsQuery.data);
+    }
+    if (
+      source !== "famitsu" &&
+      circanaQuery.data &&
+      circanaQuery.data.length > 0
+    ) {
+      return buildCircanaChartData(circanaQuery.data);
+    }
+    return null;
+  }, [source, famitsuTrendsQuery.data, circanaQuery.data]);
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
@@ -40,13 +70,11 @@ export function GameModal({ gameId, onClose }: Props) {
   }
 
   const game = query.data;
-
+  const releaseDate = formatDate(game?.release_date_us);
   const igdbUrl =
     game?.igdb_id != null
       ? `https://www.igdb.com/search?q=${encodeURIComponent(game.title_en)}`
       : null;
-
-  const releaseDate = formatDate(game?.release_date_us);
 
   return (
     <div
@@ -56,7 +84,7 @@ export function GameModal({ gameId, onClose }: Props) {
       role="dialog"
       aria-modal="true"
     >
-      <div className={`modal${trendsQuery.data?.length ? " modal--wide" : ""}`}>
+      <div className={`modal${chartContent ? " modal--wide" : ""}`}>
         <button className="modal__close" onClick={onClose} aria-label="Close">
           ✕
         </button>
@@ -119,20 +147,25 @@ export function GameModal({ gameId, onClose }: Props) {
 
         {game && (
           <div className="modal__chart-section">
-            <p className="modal__chart-title">Rank History</p>
-            {trendsQuery.isPending && (
+            <p className="modal__chart-title">
+              {source === "famitsu" ? "Famitsu Rank History" : "Rank History"}
+            </p>
+            {trendsIsPending && (
               <div className="modal__chart-loading">
                 <Spinner />
               </div>
             )}
-            {trendsQuery.isError && (
+            {trendsIsError && (
               <p className="modal__chart-error">Could not load rank history.</p>
             )}
-            {trendsQuery.data?.length === 0 && (
+            {!chartContent && !trendsIsPending && (
               <p className="modal__chart-empty">No rank history available.</p>
             )}
-            {trendsQuery.data && trendsQuery.data.length > 0 && (
-              <RankHistoryChart data={trendsQuery.data} />
+            {chartContent && (
+              <RankHistoryChart
+                data={chartContent.points}
+                series={chartContent.series}
+              />
             )}
           </div>
         )}

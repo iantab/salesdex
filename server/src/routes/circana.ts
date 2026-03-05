@@ -57,7 +57,7 @@ app.get("/reports/:id", async (c) => {
 
 const chartsQuerySchema = z.object({
   report_id: z.coerce.number(),
-  chart_type: z.string(),
+  chart_type: z.enum(["overall", "nintendo", "playstation", "xbox"]),
 });
 
 app.get("/charts", zValidator("query", chartsQuerySchema), async (c) => {

@@ -8,103 +8,43 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import type { TrendEntry, ChartType } from "../api/types";
 
-const PLATFORM_COLORS: Record<ChartType, string> = {
-  overall: "#646cff",
-  nintendo: "#e4000f",
-  playstation: "#0070cc",
-  xbox: "#107c10",
-};
-
-const PLATFORM_LABELS: Record<ChartType, string> = {
-  overall: "Overall",
-  nintendo: "Nintendo",
-  playstation: "PlayStation",
-  xbox: "Xbox",
-};
-
-interface ChartPoint {
+/**
+ * A normalized point on the chart. `sortKey` is used for ordering;
+ * `label` is the display string. Any additional string keys are platform
+ * names whose values are the rank at that point in time.
+ */
+export interface ChartPoint {
   label: string;
-  period_end: string;
-  overall?: number;
-  nintendo?: number;
-  playstation?: number;
-  xbox?: number;
+  sortKey: string;
+  [series: string]: number | string | undefined;
+}
+
+export interface SeriesConfig {
+  key: string;
+  label: string;
+  color: string;
 }
 
 interface Props {
-  data: TrendEntry[];
+  /** Pre-normalized chart data; one point per time period. */
+  data: ChartPoint[];
+  /** Series (platform/chart-type) metadata — key, display label, color. */
+  series: SeriesConfig[];
 }
 
-export function RankHistoryChart({ data }: Props) {
-  // Pivot flat rows into one object per period_end
-  const pointMap = new Map<string, ChartPoint>();
-  for (const entry of data) {
-    const key =
-      entry.month != null
-        ? `${entry.year}-${String(entry.month).padStart(2, "0")}`
-        : `${entry.year}`;
-    if (!pointMap.has(key)) {
-      const label =
-        entry.month != null
-          ? new Date(entry.year, entry.month - 1).toLocaleDateString("en-US", {
-              month: "short",
-              year: "2-digit",
-            })
-          : `${entry.year}`;
-      pointMap.set(key, { label, period_end: key });
-    }
-    const point = pointMap.get(key)!;
-    point[entry.chart_type] = entry.rank;
-  }
-
-  // Fill in missing months so the x-axis is continuous and gaps are visible
-  const sortedKeys = Array.from(pointMap.keys()).sort();
-  if (sortedKeys.length > 1 && sortedKeys[0].includes("-")) {
-    const [startYear, startMonth] = sortedKeys[0].split("-").map(Number);
-    const [endYear, endMonth] = sortedKeys[sortedKeys.length - 1]
-      .split("-")
-      .map(Number);
-    let year = startYear;
-    let month = startMonth;
-    while (year < endYear || (year === endYear && month <= endMonth)) {
-      const key = `${year}-${String(month).padStart(2, "0")}`;
-      if (!pointMap.has(key)) {
-        const label = new Date(year, month - 1).toLocaleDateString("en-US", {
-          month: "short",
-          year: "2-digit",
-        });
-        pointMap.set(key, { label, period_end: key });
-      }
-      month++;
-      if (month > 12) {
-        month = 1;
-        year++;
-      }
-    }
-  }
-
-  const chartData = Array.from(pointMap.values()).sort((a, b) =>
-    a.period_end.localeCompare(b.period_end),
+export function RankHistoryChart({ data, series }: Props) {
+  const [visible, setVisible] = React.useState<Set<string>>(
+    new Set(series.map((s) => s.key)),
   );
 
-  // Determine which platforms have any data
-  const platforms = (
-    ["overall", "nintendo", "playstation", "xbox"] as ChartType[]
-  ).filter((p) => chartData.some((pt) => pt[p] != null));
-
-  const [visible, setVisible] = React.useState<Set<ChartType>>(
-    new Set(platforms),
-  );
-
-  function togglePlatform(platform: ChartType) {
+  function toggleSeries(key: string) {
     setVisible((prev) => {
       const next = new Set(prev);
-      if (next.has(platform)) {
-        next.delete(platform);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(platform);
+        next.add(key);
       }
       return next;
     });
@@ -112,25 +52,20 @@ export function RankHistoryChart({ data }: Props) {
 
   return (
     <div>
-      {platforms.length > 1 && (
+      {series.length > 1 && (
         <div className="modal__chart-toggles">
-          {platforms.map((p) => {
-            const active = visible.has(p);
+          {series.map((s) => {
+            const active = visible.has(s.key);
             return (
               <button
-                key={p}
+                key={s.key}
                 className={`modal__chart-toggle ${active ? "modal__chart-toggle--active" : "modal__chart-toggle--inactive"}`}
                 style={
-                  active
-                    ? {
-                        borderColor: PLATFORM_COLORS[p],
-                        color: PLATFORM_COLORS[p],
-                      }
-                    : undefined
+                  active ? { borderColor: s.color, color: s.color } : undefined
                 }
-                onClick={() => togglePlatform(p)}
+                onClick={() => toggleSeries(s.key)}
               >
-                {PLATFORM_LABELS[p]}
+                {s.label}
               </button>
             );
           })}
@@ -139,7 +74,7 @@ export function RankHistoryChart({ data }: Props) {
 
       <ResponsiveContainer width="100%" height={220}>
         <LineChart
-          data={chartData}
+          data={data}
           margin={{ top: 4, right: 8, bottom: 0, left: -16 }}
         >
           <CartesianGrid
@@ -172,19 +107,20 @@ export function RankHistoryChart({ data }: Props) {
             formatter={(
               value: number | undefined,
               name: string | undefined,
-            ) => [
-              value != null ? `#${value}` : "—",
-              PLATFORM_LABELS[(name ?? "") as ChartType] ?? name ?? "",
-            ]}
+            ) => {
+              const seriesLabel =
+                series.find((s) => s.key === name)?.label ?? name ?? "";
+              return [value != null ? `#${value}` : "—", seriesLabel];
+            }}
             labelStyle={{ color: "var(--color-text-muted)", marginBottom: 4 }}
           />
-          {platforms.map((p) =>
-            visible.has(p) ? (
+          {series.map((s) =>
+            visible.has(s.key) ? (
               <Line
-                key={p}
+                key={s.key}
                 type="monotone"
-                dataKey={p}
-                stroke={PLATFORM_COLORS[p]}
+                dataKey={s.key}
+                stroke={s.color}
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 connectNulls={false}

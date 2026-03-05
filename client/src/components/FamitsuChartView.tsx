@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFamitsuSoftware, fetchFamitsuHardware } from "../api/famitsu";
 import { FamitsuGameRow } from "./FamitsuGameRow";
@@ -26,13 +26,17 @@ export function FamitsuChartView({
   onGameClick,
   onPlatformsLoaded,
 }: Props) {
-  const [notifiedPlatforms, setNotifiedPlatforms] = useState<string | null>(
-    null,
-  );
-
+  // Fetch filtered software (for display)
   const softwareQuery = useQuery({
     queryKey: ["famitsu-software", reportId, activePlatform],
     queryFn: () => fetchFamitsuSoftware(reportId, activePlatform ?? undefined),
+    enabled: section === "software",
+  });
+
+  // Fetch unfiltered software (to derive available platforms)
+  const allSoftwareQuery = useQuery({
+    queryKey: ["famitsu-software", reportId, null],
+    queryFn: () => fetchFamitsuSoftware(reportId, undefined),
     enabled: section === "software",
   });
 
@@ -42,24 +46,21 @@ export function FamitsuChartView({
     enabled: section === "hardware",
   });
 
-  // Derive available platforms from unfiltered software data and notify parent
-  const allSoftwareQuery = useQuery({
-    queryKey: ["famitsu-software", reportId, null],
-    queryFn: () => fetchFamitsuSoftware(reportId, undefined),
-    enabled: section === "software",
-  });
-
+  // Notify parent of available platforms using a ref to prevent stale-closure
+  // re-notifications on every render. We only call the callback when the
+  // derived platform list actually changes.
+  const lastPlatformKey = useRef<string | null>(null);
   useEffect(() => {
     if (!allSoftwareQuery.data) return;
     const platforms = [
       ...new Set(allSoftwareQuery.data.map((e) => e.platform)),
     ].sort();
     const key = platforms.join(",");
-    if (key !== notifiedPlatforms) {
-      setNotifiedPlatforms(key);
+    if (key !== lastPlatformKey.current) {
+      lastPlatformKey.current = key;
       onPlatformsLoaded(platforms);
     }
-  }, [allSoftwareQuery.data, notifiedPlatforms, onPlatformsLoaded]);
+  }, [allSoftwareQuery.data, onPlatformsLoaded]);
 
   if (section === "software") {
     if (softwareQuery.isPending) {
@@ -74,7 +75,7 @@ export function FamitsuChartView({
       );
     }
     if (softwareQuery.error)
-      return <ErrorMessage message={(softwareQuery.error as Error).message} />;
+      return <ErrorMessage error={softwareQuery.error} />;
 
     const entries = softwareQuery.data ?? [];
     return (
@@ -111,8 +112,7 @@ export function FamitsuChartView({
       </div>
     );
   }
-  if (hardwareQuery.error)
-    return <ErrorMessage message={(hardwareQuery.error as Error).message} />;
+  if (hardwareQuery.error) return <ErrorMessage error={hardwareQuery.error} />;
 
   const hwEntries = hardwareQuery.data ?? [];
   return (
