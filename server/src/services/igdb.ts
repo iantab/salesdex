@@ -182,14 +182,19 @@ async function igdbPost(
 
 const MIN_SIMILARITY = 0.5;
 
+function scoreGame(game: IGDBRawGame, query: string): number {
+  const names = [
+    game.name ?? "",
+    ...(game.alternative_names?.map((an) => an.name) ?? []),
+  ];
+  return Math.max(...names.map((n) => similarity(n, query)));
+}
+
 function pickBest(results: IGDBRawGame[], query: string): IGDBRawGame | null {
-  const best = results.reduce((best, candidate) => {
-    return similarity(candidate.name ?? "", query) >
-      similarity(best.name ?? "", query)
-      ? candidate
-      : best;
-  });
-  return similarity(best.name ?? "", query) >= MIN_SIMILARITY ? best : null;
+  const best = results.reduce((best, candidate) =>
+    scoreGame(candidate, query) > scoreGame(best, query) ? candidate : best,
+  );
+  return scoreGame(best, query) >= MIN_SIMILARITY ? best : null;
 }
 
 export async function searchGame(
@@ -243,10 +248,6 @@ export async function searchGame(
 
     if (results.length === 0) {
       results = await doFuzzySearch(shortTitle);
-    }
-
-    if (results.length > 0) {
-      pickQuery = cleanTitle.split(/ - |: |\s[\u2013\u2014]\s/)[0].trim();
     }
   }
 
