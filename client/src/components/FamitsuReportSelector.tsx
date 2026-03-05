@@ -15,15 +15,13 @@ interface Props {
 }
 
 function formatWeekRange(report: FamitsuReport): string {
-  const start = new Date(report.period_start).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  const end = new Date(report.period_end).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  return `${start}–${end}`;
+  const parseLocal = (dateStr: string) => {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(parseLocal(report.period_start))}–${fmt(parseLocal(report.period_end))}`;
 }
 
 export function FamitsuReportSelector({
@@ -66,22 +64,24 @@ export function FamitsuReportSelector({
           ))}
         </select>
 
-        <span className="famitsu-selector__label famitsu-selector__label--week">
+        <label
+          className="famitsu-selector__label famitsu-selector__label--week"
+          htmlFor="famitsu-week-select"
+        >
           Week
-        </span>
-        <div className="pill-group" role="group" aria-label="Week">
+        </label>
+        <select
+          id="famitsu-week-select"
+          className="famitsu-selector__select"
+          value={selectedWeek ?? ""}
+          onChange={(e) => onWeekChange(Number(e.target.value))}
+        >
           {reportsForYear.map((r) => (
-            <button
-              key={r.id}
-              className={`pill-btn${selectedWeek === r.week_of_year ? " pill-btn--active" : ""}`}
-              onClick={() => onWeekChange(r.week_of_year)}
-              aria-pressed={selectedWeek === r.week_of_year}
-              title={formatWeekRange(r)}
-            >
-              W{r.week_of_year}
-            </button>
+            <option key={r.id} value={r.week_of_year}>
+              {formatWeekRange(r)}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       <hr className="famitsu-selector__divider" />
