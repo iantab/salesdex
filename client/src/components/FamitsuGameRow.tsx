@@ -40,8 +40,8 @@ export function FamitsuGameRow({ entry, onClick }: Props) {
         )}
       </div>
       <span className="famitsu-row__title">{entry.title_en}</span>
-      <span className="famitsu-row__platform-pill">{entry.platform}</span>
       {entry.is_new && <span className="famitsu-row__new-badge">NEW</span>}
+      <span className="famitsu-row__platform-pill">{entry.platform}</span>
       <span className="famitsu-row__sales">
         {formatSales(entry.weekly_sales)}
       </span>
