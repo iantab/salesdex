@@ -45,23 +45,6 @@ const IngestSchema = z.object({
   hardware: z.array(HardwareEntrySchema).max(50),
 });
 
-function scheduleEnrichment(
-  env: CloudflareBindings,
-  executionCtx: ExecutionContext,
-  ids: number[],
-): Promise<void> {
-  if (env.IGDB_ENRICHMENT_QUEUE) {
-    const CHUNK = 10;
-    const messages = [];
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      messages.push({ body: { game_ids: ids.slice(i, i + CHUNK) } });
-    }
-    return env.IGDB_ENRICHMENT_QUEUE.sendBatch(messages);
-  }
-  executionCtx.waitUntil(enrichGames(env, ids));
-  return Promise.resolve();
-}
-
 app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
   const payload = c.req.valid("json");
   const db = c.get("db");
@@ -194,7 +177,7 @@ app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
 
   // 7. Enrich new games with IGDB metadata
   if (newGameIds.length > 0) {
-    await scheduleEnrichment(c.env, c.executionCtx, newGameIds);
+    c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
   }
 
   return c.json({

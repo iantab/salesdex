@@ -64,23 +64,6 @@ const UpdateGameSchema = z.object({
   cover_url: z.string().url().max(2000).optional(),
 });
 
-function scheduleEnrichment(
-  env: CloudflareBindings,
-  executionCtx: ExecutionContext,
-  ids: number[],
-): Promise<void> {
-  if (env.IGDB_ENRICHMENT_QUEUE) {
-    const CHUNK = 10;
-    const messages = [];
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      messages.push({ body: { game_ids: ids.slice(i, i + CHUNK) } });
-    }
-    return env.IGDB_ENRICHMENT_QUEUE.sendBatch(messages);
-  }
-  executionCtx.waitUntil(enrichGames(env, ids));
-  return Promise.resolve();
-}
-
 app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
   const payload = c.req.valid("json");
   const db = c.get("db");
@@ -203,7 +186,7 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 
   // 6. Enrich new games with IGDB metadata — prefer Queue for durability
   if (newGameIds.length > 0) {
-    await scheduleEnrichment(c.env, c.executionCtx, newGameIds);
+    c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
   }
 
   return c.json({
@@ -230,9 +213,9 @@ app.post("/games/enrich", async (c) => {
   }
 
   const ids = rows.map((r) => r.id);
-  await scheduleEnrichment(c.env, c.executionCtx, ids);
+  await enrichGames(c.env, ids);
 
-  return c.json({ data: { queued: ids.length } });
+  return c.json({ data: { enriched: ids.length } });
 });
 
 app.post("/games/:id", zValidator("json", UpdateGameSchema), async (c) => {
