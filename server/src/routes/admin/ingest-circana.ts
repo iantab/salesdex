@@ -199,6 +199,9 @@ app.post("/ingest/circana", zValidator("json", IngestSchema), async (c) => {
 });
 
 app.post("/games/enrich", async (c) => {
+  // Clear cached IGDB token so fresh credentials are used
+  await c.env.KV.delete("igdb:access_token");
+
   const db = c.get("db");
 
   const rows = await db
