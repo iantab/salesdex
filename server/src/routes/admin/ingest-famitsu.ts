@@ -177,7 +177,7 @@ app.post("/ingest/famitsu", zValidator("json", IngestSchema), async (c) => {
 
   // 7. Enrich new games with IGDB metadata
   if (newGameIds.length > 0) {
-    c.executionCtx.waitUntil(enrichGames(c.env, newGameIds));
+    await enrichGames(c.env, newGameIds);
   }
 
   return c.json({
