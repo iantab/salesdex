@@ -213,9 +213,9 @@ app.post("/games/enrich", async (c) => {
   }
 
   const ids = rows.map((r) => r.id);
-  await enrichGames(c.env, ids);
+  const results = await enrichGames(c.env, ids);
 
-  return c.json({ data: { enriched: ids.length } });
+  return c.json({ data: { total: ids.length, results } });
 });
 
 app.post("/games/:id", zValidator("json", UpdateGameSchema), async (c) => {
