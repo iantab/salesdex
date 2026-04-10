@@ -7,7 +7,6 @@ import { invalidateCachePrefix, CACHE_PREFIXES } from "../../middleware/cache";
 import { enrichGames } from "../../services/enrichment";
 import {
   games,
-  game_details,
   circana_reports,
   circana_market_totals,
   circana_entries,
@@ -222,8 +221,7 @@ app.post("/games/enrich", async (c) => {
   const rows = await db
     .select({ id: games.id })
     .from(games)
-    .leftJoin(game_details, eq(game_details.game_id, games.id))
-    .where(isNull(game_details.game_id));
+    .where(isNull(games.igdb_id));
 
   if (rows.length === 0) {
     return c.json({

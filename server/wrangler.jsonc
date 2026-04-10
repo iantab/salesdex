@@ -16,30 +16,4 @@
       "database_id": "c030a168-419f-4f2b-a6a8-ed4710cbf6e5",
     },
   ],
-
-  "queues": {
-    "producers": [
-      { "binding": "IGDB_ENRICHMENT_QUEUE", "queue": "igdb-enrichment" }
-    ],
-    "consumers": [
-      {
-        "queue": "igdb-enrichment",
-        "max_batch_size": 10,
-        "max_retries": 3,
-        "dead_letter_queue": "igdb-enrichment-dlq"
-      }
-    ]
-  },
-
-  // ── Rate Limiting API ────────────────────────────────────────────────────
-  // Setup: uncomment and adjust limit/period as needed.
-  // Docs: https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
-  //
-  // "rate_limiting": [
-  //   {
-  //     "binding": "RATE_LIMITER",
-  //     "namespace_id": "1",
-  //     "simple": { "limit": 100, "period": 60 }
-  //   }
-  // ]
 }

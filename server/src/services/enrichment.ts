@@ -61,8 +61,11 @@ export async function enrichGames(
             updated_at: sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
           },
         });
-    } catch {
-      // Non-fatal: skip this game if IGDB lookup fails
+    } catch (err) {
+      console.error(
+        `[enrichment] Failed for game ${gameId} ("${rows[0].title_en}"):`,
+        err,
+      );
     }
   }
 }
